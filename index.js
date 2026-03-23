@@ -1,82 +1,309 @@
-const express=require("express");
-const body_parser=require("body-parser");
-const axios=require("axios");
-require('dotenv').config();
+const express = require("express");
+const bodyParser = require("body-parser");
+const axios = require("axios");
+require("dotenv").config();
 
-const app=express().use(body_parser.json());
+const app = express();
+app.use(bodyParser.json());
 
-const token=process.env.TOKEN;
-const mytoken=process.env.MYTOKEN;//prasath_token
+const TOKEN = process.env.TOKEN;
+const VERIFY = process.env.MYTOKEN;
+const GOOGLE_API = process.env.GOOGLE_API;
+const PHONE_ID = process.env.PHONE_NUMBER_ID;
 
-app.listen(process.env.PORT,()=>{
-    console.log("webhook is listening");
+let userState = {};
+let otpStore = {};
+let sessionStore = {};
+
+
+// ================= OTP =================
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function hasSession(mobile) {
+
+  const s = sessionStore[mobile];
+
+  if (!s) return false;
+
+  const now = Date.now();
+  const diff = now - s;
+
+  return diff < 12 * 60 * 60 * 1000;
+}
+
+
+// ================= GOOGLE =================
+
+async function getSheet(sheet) {
+
+  const res = await axios.get(
+    `${GOOGLE_API}?sheet=${sheet}`
+  );
+
+  return res.data || [];
+}
+
+
+async function findEmployee(mobile) {
+
+  const list = await getSheet("Emp_Details");
+
+  return list.find(
+    x => String(x.Mobile) === String(mobile)
+  );
+
+}
+
+
+
+// ================= VERIFY =================
+
+app.get("/webhook", (req, res) => {
+
+  if (
+    req.query["hub.mode"] === "subscribe" &&
+    req.query["hub.verify_token"] === VERIFY
+  ) {
+    return res.send(req.query["hub.challenge"]);
+  }
+
+  res.sendStatus(403);
+
 });
 
-//to verify the callback url from dashboard side - cloud api side
-app.get("/webhook",(req,res)=>{
-   let mode=req.query["hub.mode"];
-   let challange=req.query["hub.challenge"];
-   let token=req.query["hub.verify_token"];
 
 
-    if(mode && token){
+// ================= WEBHOOK =================
 
-        if(mode==="subscribe" && token===mytoken){
-            res.status(200).send(challange);
-        }else{
-            res.status(403);
+app.post("/webhook", async (req, res) => {
+
+  try {
+
+    const entry = req.body.entry?.[0]?.changes?.[0]?.value;
+    const msg = entry?.messages?.[0];
+
+    if (!msg) return res.sendStatus(200);
+
+    const from = msg.from;
+    const pid = entry.metadata.phone_number_id;
+
+
+
+    // ================= TEXT =================
+
+    if (msg.type === "text") {
+
+      const text = msg.text.body.trim();
+
+
+      // OTP verify
+
+      if (userState[from]?.step === "otp") {
+
+        if (text === otpStore[from]) {
+
+          sessionStore[from] = Date.now();
+
+          const emp = await findEmployee(from);
+
+          await sendMainMenu(pid, from, emp.Name);
+
+        } else {
+
+          await sendText(
+            pid,
+            from,
+            "Wrong OTP"
+          );
         }
 
+        return res.sendStatus(200);
+      }
+
+
+
+      // check session
+
+      if (hasSession(from)) {
+
+        const emp = await findEmployee(from);
+
+        await sendMainMenu(pid, from, emp.Name);
+
+        return res.sendStatus(200);
+      }
+
+
+
+      // check employee
+
+      const emp = await findEmployee(from);
+
+      if (!emp) {
+
+        await sendText(
+          pid,
+          from,
+          "You are not registered employee"
+        );
+
+        return res.sendStatus(200);
+      }
+
+
+
+      // send OTP
+
+      const otp = generateOTP();
+
+      otpStore[from] = otp;
+
+      userState[from] = { step: "otp" };
+
+      await sendText(
+        pid,
+        from,
+        `HR Place OTP: ${otp}`
+      );
+
+      return res.sendStatus(200);
+
     }
+
+
+
+    // ================= BUTTON =================
+
+    if (
+      msg.type === "interactive" &&
+      msg.interactive.button_reply
+    ) {
+
+      const id =
+        msg.interactive.button_reply.id;
+
+
+      if (id === "APPLY") {
+
+        await sendText(pid, from, "Apply menu");
+
+      }
+
+      if (id === "VIEW") {
+
+        await sendText(pid, from, "View menu");
+
+      }
+
+      if (id === "PROFILE") {
+
+        await sendText(pid, from, "Profile menu");
+
+      }
+
+      if (id === "TICKET") {
+
+        await sendText(pid, from, "Ticket menu");
+
+      }
+
+      return res.sendStatus(200);
+
+    }
+
+
+    res.sendStatus(200);
+
+  } catch (e) {
+
+    console.log(e);
+    res.sendStatus(200);
+
+  }
 
 });
 
-app.post("/webhook",(req,res)=>{ //i want some 
 
-    let body_param=req.body;
 
-    console.log(JSON.stringify(body_param,null,2));
+// ================= MENU =================
 
-    if(body_param.object){
-        console.log("inside body param");
-        if(body_param.entry && 
-            body_param.entry[0].changes && 
-            body_param.entry[0].changes[0].value.messages && 
-            body_param.entry[0].changes[0].value.messages[0]  
-            ){
-               let phon_no_id=body_param.entry[0].changes[0].value.metadata.phone_number_id;
-               let from = body_param.entry[0].changes[0].value.messages[0].from; 
-               let msg_body = body_param.entry[0].changes[0].value.messages[0].text.body;
+async function sendMainMenu(pid,to,name){
 
-               console.log("phone number "+phon_no_id);
-               console.log("from "+from);
-               console.log("boady param "+msg_body);
+  await sendButtons(
+    pid,
+    to,
+    `Hi ${name}\nSelect option`,
+    [
+      ["APPLY","APPLY"],
+      ["VIEW","VIEW"],
+      ["PROFILE","PROFILE"],
+      ["TICKET","TICKET"]
+    ]
+  );
 
-               axios({
-                   method:"POST",
-                   url:"https://graph.facebook.com/v13.0/"+phon_no_id+"/messages?access_token="+token,
-                   data:{
-                       messaging_product:"whatsapp",
-                       to:from,
-                       text:{
-                           body:"Hi.. I'm Prasath, your message is "+msg_body
-                       }
-                   },
-                   headers:{
-                       "Content-Type":"application/json"
-                   }
+}
 
-               });
 
-               res.sendStatus(200);
-            }else{
-                res.sendStatus(404);
+
+// ================= SEND =================
+
+async function sendText(pid,to,body){
+
+  return axios.post(
+    `https://graph.facebook.com/v23.0/${pid}/messages`,
+    {
+      messaging_product:"whatsapp",
+      to,
+      text:{ body }
+    },
+    {
+      headers:{
+        Authorization:`Bearer ${TOKEN}`
+      }
+    }
+  );
+
+}
+
+
+async function sendButtons(pid,to,body,buttons){
+
+  return axios.post(
+    `https://graph.facebook.com/v23.0/${pid}/messages`,
+    {
+      messaging_product:"whatsapp",
+      to,
+      type:"interactive",
+      interactive:{
+        type:"button",
+        body:{ text: body },
+        action:{
+          buttons:buttons.map(b=>({
+            type:"reply",
+            reply:{
+              id:b[0],
+              title:b[1]
             }
-
+          }))
+        }
+      }
+    },
+    {
+      headers:{
+        Authorization:`Bearer ${TOKEN}`
+      }
     }
+  );
 
-});
+}
 
-app.get("/",(req,res)=>{
-    res.status(200).send("hello this is webhook setup");
+
+
+app.listen(3000,()=>{
+
+  console.log("HR PLACE RUNNING");
+
 });
