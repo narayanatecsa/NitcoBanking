@@ -11,7 +11,7 @@ const VERIFY = process.env.MYTOKEN;
 
 
 
-// ================= VERIFY =================
+// VERIFY
 
 app.get("/webhook", (req, res) => {
 
@@ -28,13 +28,11 @@ app.get("/webhook", (req, res) => {
 
 
 
-// ================= WEBHOOK =================
+// WEBHOOK
 
 app.post("/webhook", async (req, res) => {
 
   try {
-
-    console.log("BODY:", JSON.stringify(req.body));
 
     const entry = req.body.entry?.[0]?.changes?.[0]?.value;
     const msg = entry?.messages?.[0];
@@ -44,11 +42,6 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = entry.metadata.phone_number_id;
 
-    console.log("FROM:", from);
-    console.log("PID:", pid);
-
-
-    // TEXT MESSAGE
 
     if (msg.type === "text") {
 
@@ -59,19 +52,44 @@ app.post("/webhook", async (req, res) => {
         [
           ["APPLY","APPLY"],
           ["VIEW","VIEW"],
-          ["PROFILE","PROFILE"],
-          ["TICKET","TICKET"]
+          ["MORE","MORE"]
         ]
       );
 
     }
 
+
+    if (
+      msg.type === "interactive" &&
+      msg.interactive.button_reply
+    ) {
+
+      const id = msg.interactive.button_reply.id;
+
+
+      if (id === "MORE") {
+
+        await sendButtons(
+          pid,
+          from,
+          "More Menu",
+          [
+            ["PROFILE","PROFILE"],
+            ["TICKET","TICKET"],
+            ["BACK","BACK"]
+          ]
+        );
+
+      }
+
+    }
+
+
     res.sendStatus(200);
 
   } catch (e) {
 
-    console.log("ERROR:", e.response?.data || e.message);
-
+    console.log(e.response?.data || e.message);
     res.sendStatus(200);
 
   }
@@ -80,7 +98,7 @@ app.post("/webhook", async (req, res) => {
 
 
 
-// ================= SEND BUTTONS =================
+// SEND BUTTONS
 
 async function sendButtons(pid,to,body,buttons){
 
@@ -124,10 +142,6 @@ async function sendButtons(pid,to,body,buttons){
 
 
 
-// ================= START =================
-
 app.listen(3000, () => {
-
-  console.log("HR SIMPLE BOT RUNNING");
-
+  console.log("HR BOT RUNNING");
 });
