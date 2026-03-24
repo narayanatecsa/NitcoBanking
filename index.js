@@ -3,145 +3,200 @@ const bodyParser = require("body-parser");
 const axios = require("axios");
 require("dotenv").config();
 
+const { google } = require("googleapis");
+
 const app = express();
 app.use(bodyParser.json());
 
 const TOKEN = process.env.TOKEN;
-const VERIFY = process.env.MYTOKEN;
+const VERIFY = process.env.VERIFY;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const SHEET_ID = process.env.SHEET_ID;
+
+
+// =========================
+// GOOGLE SHEET FUNCTION
+// =========================
+
+async function getEmployeeByMobile(mobile) {
+
+  const auth = new google.auth.GoogleAuth({
+    keyFile: "service.json", // service account file
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  });
+
+  const sheets = google.sheets({
+    auth,
+    version: "v4",
+  });
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: "Emp_Details!A2:F",
+  });
+
+  const rows = res.data.values;
+
+  if (!rows) return null;
+
+  for (let row of rows) {
+
+    let sheetMobile = row[2]; // column C mobile
+    let name = row[1]; // column B name
+
+    if (mobile.endsWith(sheetMobile)) {
+      return name;
+    }
+  }
+
+  return null;
+}
 
 
 
-// VERIFY
+// =========================
+// SEND WHATSAPP
+// =========================
+
+async function sendMessage(to, text) {
+
+  await axios.post(
+    `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "text",
+      text: { body: text },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+      },
+    }
+  );
+}
+
+
+
+// =========================
+// MENU MESSAGE
+// =========================
+
+async function sendMenu(to) {
+
+  await axios.post(
+    `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to: to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: {
+          text: "Select Menu",
+        },
+        action: {
+          buttons: [
+            {
+              type: "reply",
+              reply: { id: "1", title: "Attendance" },
+            },
+            {
+              type: "reply",
+              reply: { id: "2", title: "Leave" },
+            },
+            {
+              type: "reply",
+              reply: { id: "3", title: "Salary" },
+            },
+          ],
+        },
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+      },
+    }
+  );
+}
+
+
+
+// =========================
+// WEBHOOK VERIFY
+// =========================
 
 app.get("/webhook", (req, res) => {
 
-  if (
-    req.query["hub.mode"] === "subscribe" &&
-    req.query["hub.verify_token"] === VERIFY
-  ) {
-    return res.send(req.query["hub.challenge"]);
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === VERIFY) {
+    res.send(challenge);
+  } else {
+    res.sendStatus(403);
   }
-
-  res.sendStatus(403);
-
 });
 
 
 
-// WEBHOOK
+// =========================
+// WEBHOOK RECEIVE
+// =========================
 
 app.post("/webhook", async (req, res) => {
 
   try {
 
-    const entry = req.body.entry?.[0]?.changes?.[0]?.value;
-    const msg = entry?.messages?.[0];
+    const msg =
+      req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
     if (!msg) return res.sendStatus(200);
 
     const from = msg.from;
-    const pid = entry.metadata.phone_number_id;
+    const text = msg.text?.body || "";
+
+    console.log("Message:", text, "From:", from);
 
 
-    if (msg.type === "text") {
-
-      await sendButtons(
-        pid,
-        from,
-        "Main Menu",
-        [
-          ["APPLY","APPLY"],
-          ["VIEW","VIEW"],
-          ["MORE","MORE"]
-        ]
-      );
-
-    }
-
-
+    // only first hi
     if (
-      msg.type === "interactive" &&
-      msg.interactive.button_reply
+      text.toLowerCase() === "hi" ||
+      text.toLowerCase() === "hello" ||
+      text.toLowerCase() === "start"
     ) {
 
-      const id = msg.interactive.button_reply.id;
+      const name = await getEmployeeByMobile(from);
 
+      if (name) {
 
-      if (id === "MORE") {
-
-        await sendButtons(
-          pid,
+        await sendMessage(
           from,
-          "More Menu",
-          [
-            ["PROFILE","PROFILE"],
-            ["TICKET","TICKET"],
-            ["BACK","BACK"]
-          ]
+          `Welcome ${name} to HR Place`
         );
 
-      }
+        await sendMenu(from);
 
+      } else {
+
+        await sendMessage(
+          from,
+          "You are not registered in HR Place"
+        );
+      }
     }
 
-
-    res.sendStatus(200);
-
-  } catch (e) {
-
-    console.log(e.response?.data || e.message);
-    res.sendStatus(200);
-
+  } catch (err) {
+    console.log(err);
   }
 
+  res.sendStatus(200);
 });
 
 
 
-// SEND BUTTONS
-
-async function sendButtons(pid,to,body,buttons){
-
-  return axios.post(
-    `https://graph.facebook.com/v25.0/${pid}/messages`,
-    {
-      messaging_product: "whatsapp",
-
-      to: String(to),
-
-      type: "interactive",
-
-      interactive: {
-        type: "button",
-
-        body: {
-          text: body
-        },
-
-        action: {
-          buttons: buttons.map(b => ({
-            type: "reply",
-            reply: {
-              id: b[0],
-              title: b[1]
-            }
-          }))
-        }
-      }
-
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        "Content-Type": "application/json"
-      }
-    }
-  );
-
-}
-
-
-
 app.listen(3000, () => {
-  console.log("HR BOT RUNNING");
+  console.log("Server running");
 });
