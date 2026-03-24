@@ -105,6 +105,35 @@ app.post("/webhook", async (req, res) => {
 
     }
 
+
+    // ===== LIST CLICK =====
+
+    if (
+      msg.type === "interactive" &&
+      msg.interactive.list_reply
+    ) {
+
+      const id = msg.interactive.list_reply.id;
+
+      if (id === "APPLY") {
+        await sendText(pid, from, "Apply menu coming");
+      }
+
+      if (id === "VIEW") {
+        await sendText(pid, from, "View menu coming");
+      }
+
+      if (id === "PROFILE") {
+        await sendText(pid, from, "Profile menu coming");
+      }
+
+      if (id === "REQUEST") {
+        await sendText(pid, from, "Request menu coming");
+      }
+
+    }
+
+
     res.sendStatus(200);
 
   } catch (e) {
@@ -115,7 +144,8 @@ app.post("/webhook", async (req, res) => {
 });
 
 
-// ========= MENU =========
+
+// ========= MENU (4 RADIO OPTIONS) =========
 
 async function sendMenu(pid, to) {
 
@@ -126,23 +156,46 @@ async function sendMenu(pid, to) {
       to,
       type: "interactive",
       interactive: {
-        type: "button",
+        type: "list",
+        header: {
+          type: "text",
+          text: "HR Place"
+        },
         body: {
-          text: "Select Menu"
+          text: "Select option"
         },
         action: {
-          buttons: [
+          button: "Main Menu",
+          sections: [
             {
-              type: "reply",
-              reply: { id: "ATT", title: "Attendance" }
-            },
-            {
-              type: "reply",
-              reply: { id: "LEV", title: "Leave" }
-            },
-            {
-              type: "reply",
-              reply: { id: "SAL", title: "Salary" }
+              title: "Options",
+              rows: [
+
+                {
+                  id: "APPLY",
+                  title: "Apply",
+                  description: "Apply leave / request"
+                },
+
+                {
+                  id: "VIEW",
+                  title: "View",
+                  description: "View details"
+                },
+
+                {
+                  id: "PROFILE",
+                  title: "Profile",
+                  description: "Your profile"
+                },
+
+                {
+                  id: "REQUEST",
+                  title: "Raise a request",
+                  description: "Send request"
+                }
+
+              ]
             }
           ]
         }
@@ -156,6 +209,7 @@ async function sendMenu(pid, to) {
   );
 
 }
+
 
 
 // ========= SEND TEXT =========
