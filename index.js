@@ -174,25 +174,25 @@ async function sendMenu(pid, to) {
                 {
                   id: "APPLY",
                   title: "Apply",
-                  description: "Apply leave / request"
+                  description: "Apply leave / Claim /Overtime /replacement"
                 },
 
                 {
                   id: "VIEW",
                   title: "View",
-                  description: "View details"
+                  description: "My calender /Payslip /Time sheet"
                 },
 
                 {
                   id: "PROFILE",
                   title: "Profile",
-                  description: "Your profile"
+                  description: "Your profile / Reporting Manager / Reportee"
                 },
 
                 {
                   id: "REQUEST",
                   title: "Raise a request",
-                  description: "Send request"
+                  description: "Internal Support / External Support"
                 }
 
               ]
