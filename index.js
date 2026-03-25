@@ -10,9 +10,10 @@ const TOKEN = process.env.TOKEN;
 const VERIFY = process.env.MYTOKEN;
 const GOOGLE_API = process.env.GOOGLE_API;
 
+const processed = new Set();
 
 
-// ========= GOOGLE =========
+// ================= GOOGLE =================
 
 async function getSheet(sheet) {
   try {
@@ -24,8 +25,7 @@ async function getSheet(sheet) {
 }
 
 
-
-// ========= EMP =========
+// ================= EMP =================
 
 async function getEmployeeName(mobile) {
 
@@ -39,8 +39,7 @@ async function getEmployeeName(mobile) {
 }
 
 
-
-// ========= VERIFY =========
+// ================= VERIFY =================
 
 app.get("/webhook", (req, res) => {
 
@@ -56,95 +55,133 @@ app.get("/webhook", (req, res) => {
 });
 
 
-
-// ========= WEBHOOK =========
+// ================= WEBHOOK =================
 
 app.post("/webhook", async (req, res) => {
 
   try {
 
-    const change = req.body.entry?.[0]?.changes?.[0]?.value;
+    const change =
+      req.body.entry?.[0]?.changes?.[0]?.value;
 
     if (!change) return res.sendStatus(200);
 
-    // ignore status updates
-    if (change.statuses) return res.sendStatus(200);
+    // ignore delivery / read / status
+    if (change.statuses)
+      return res.sendStatus(200);
 
     const msg = change.messages?.[0];
 
     if (!msg) return res.sendStatus(200);
 
+
+    // ===== DUPLICATE FILTER =====
+
+    const msgId = msg.id;
+
+    if (processed.has(msgId))
+      return res.sendStatus(200);
+
+    processed.add(msgId);
+
+
     const from = msg.from;
-    const pid = change.metadata.phone_number_id;
+    const pid =
+      change.metadata.phone_number_id;
 
 
 
-    // ===== TEXT =====
+    // ========= TEXT =========
 
     if (msg.type === "text") {
 
-      const text = msg.text.body.toLowerCase();
+      const text =
+        msg.text.body.toLowerCase();
 
-      if (text === "hi" || text === "hello") {
+      if (
+        text === "hi" ||
+        text === "hello"
+      ) {
 
-        const name = await getEmployeeName(from);
+        const name =
+          await getEmployeeName(from);
 
         if (!name) {
-          await sendText(pid, from, "Not registered");
+
+          await sendText(
+            pid,
+            from,
+            "You are not registered"
+          );
+
           return res.sendStatus(200);
         }
 
-        await sendText(pid, from, `Welcome ${name}`);
-        await menuMain(pid, from);
+        await sendText(
+          pid,
+          from,
+          `Welcome ${name}`
+        );
 
+        await menuMain(pid, from);
       }
 
+      return res.sendStatus(200);
     }
 
 
 
-    // ===== BUTTON CLICK =====
+    // ========= BUTTON =========
 
     if (
       msg.type === "interactive" &&
-      msg.interactive.button_reply
+      msg.interactive?.button_reply
     ) {
 
-      const id = msg.interactive.button_reply.id;
+      const id =
+        msg.interactive.button_reply.id;
 
 
-      // NAVIGATION
 
-      if (id === "MAIN") return menuMain(pid, from);
+      // NAV
 
-      if (id === "MORE") return menuMore(pid, from);
+      if (id === "MAIN")
+        return menuMain(pid, from);
 
-      if (id === "BACK") return menuMain(pid, from);
+      if (id === "MORE")
+        return menuMore(pid, from);
+
+      if (id === "BACK")
+        return menuMain(pid, from);
 
 
 
       // MAIN
 
-      if (id === "APPLY") return menuApply(pid, from);
+      if (id === "APPLY")
+        return menuApply(pid, from);
 
-      if (id === "VIEW") return menuView(pid, from);
+      if (id === "VIEW")
+        return menuView(pid, from);
 
-      if (id === "PROFILE") return menuProfile(pid, from);
+      if (id === "PROFILE")
+        return menuProfile(pid, from);
 
-      if (id === "REQUEST") return menuRequest(pid, from);
+      if (id === "REQUEST")
+        return menuRequest(pid, from);
 
 
 
       // APPLY
 
       if (id === "LEAVE")
-        return sendText(pid, from, "Leave selected");
+        return sendText(pid, from, "Leave");
 
       if (id === "CLAIM")
-        return sendText(pid, from, "Claim selected");
+        return sendText(pid, from, "Claim");
 
       if (id === "OT")
-        return sendText(pid, from, "Overtime selected");
+        return sendText(pid, from, "Overtime");
 
 
 
@@ -177,27 +214,33 @@ app.post("/webhook", async (req, res) => {
       // REQUEST
 
       if (id === "INT")
-        return sendText(pid, from, "Internal support");
+        return sendText(pid, from, "Internal");
 
       if (id === "EXT")
-        return sendText(pid, from, "External support");
+        return sendText(pid, from, "External");
 
     }
 
     res.sendStatus(200);
 
   } catch (e) {
+
     console.log(e);
     res.sendStatus(200);
+
   }
 
 });
 
 
+// ================= BUTTON =================
 
-// ========= BUTTON SENDER =========
-
-async function sendButtons(pid, to, text, buttons) {
+async function sendButtons(
+  pid,
+  to,
+  text,
+  buttons
+) {
 
   await axios.post(
     `https://graph.facebook.com/v23.0/${pid}/messages`,
@@ -221,90 +264,121 @@ async function sendButtons(pid, to, text, buttons) {
 }
 
 
-
-// ========= BUTTON HELPER =========
-
 function btn(id, title) {
+
   return {
     type: "reply",
     reply: { id, title }
   };
+
 }
 
 
-
-// ========= MENUS =========
+// ================= MENUS =================
 
 async function menuMain(pid, to) {
 
-  return sendButtons(pid, to, "Main Menu", [
-    btn("APPLY", "Apply"),
-    btn("VIEW", "View"),
-    btn("MORE", "More")
-  ]);
+  return sendButtons(
+    pid,
+    to,
+    "Main Menu",
+    [
+      btn("APPLY", "Apply"),
+      btn("VIEW", "View"),
+      btn("MORE", "More")
+    ]
+  );
 
 }
 
 
 async function menuMore(pid, to) {
 
-  return sendButtons(pid, to, "More", [
-    btn("PROFILE", "Profile"),
-    btn("REQUEST", "Request"),
-    btn("BACK", "Back")
-  ]);
+  return sendButtons(
+    pid,
+    to,
+    "More",
+    [
+      btn("PROFILE", "Profile"),
+      btn("REQUEST", "Request"),
+      btn("BACK", "Back")
+    ]
+  );
 
 }
 
 
 async function menuApply(pid, to) {
 
-  return sendButtons(pid, to, "Apply", [
-    btn("LEAVE", "Leave"),
-    btn("CLAIM", "Claim"),
-    btn("OT", "Overtime")
-  ]);
+  return sendButtons(
+    pid,
+    to,
+    "Apply",
+    [
+      btn("LEAVE", "Leave"),
+      btn("CLAIM", "Claim"),
+      btn("OT", "Overtime")
+    ]
+  );
 
 }
 
 
 async function menuView(pid, to) {
 
-  return sendButtons(pid, to, "View", [
-    btn("CAL", "Calendar"),
-    btn("PAY", "Payslip"),
-    btn("TIME", "Time")
-  ]);
+  return sendButtons(
+    pid,
+    to,
+    "View",
+    [
+      btn("CAL", "Calendar"),
+      btn("PAY", "Payslip"),
+      btn("TIME", "Time")
+    ]
+  );
 
 }
 
 
 async function menuProfile(pid, to) {
 
-  return sendButtons(pid, to, "Profile", [
-    btn("VPRO", "View"),
-    btn("RM", "Manager"),
-    btn("MAIN", "Main Menu")
-  ]);
+  return sendButtons(
+    pid,
+    to,
+    "Profile",
+    [
+      btn("VPRO", "View"),
+      btn("RM", "Manager"),
+      btn("MAIN", "Main Menu")
+    ]
+  );
 
 }
 
 
 async function menuRequest(pid, to) {
 
-  return sendButtons(pid, to, "Request", [
-    btn("INT", "Internal"),
-    btn("EXT", "External"),
-    btn("MAIN", "Main Menu")
-  ]);
+  return sendButtons(
+    pid,
+    to,
+    "Request",
+    [
+      btn("INT", "Internal"),
+      btn("EXT", "External"),
+      btn("MAIN", "Main Menu")
+    ]
+  );
 
 }
 
 
+// ================= TEXT =================
 
-// ========= TEXT =========
-
-async function sendText(pid, to, body) {
+async function sendText(
+  pid,
+  to,
+  body
+) {
 
   await axios.post(
     `https://graph.facebook.com/v23.0/${pid}/messages`,
@@ -323,7 +397,6 @@ async function sendText(pid, to, body) {
 }
 
 
-
-app.listen(3000, () => {
-  console.log("HR BOT RUNNING PERFECT");
-});
+app.listen(3000, () =>
+  console.log("HR BOT RUNNING PERFECT")
+);
