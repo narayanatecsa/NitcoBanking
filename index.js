@@ -89,7 +89,7 @@ app.post("/webhook", async (req, res) => {
             `Welcome ${name} to HR Place`
           );
 
-          await sendMenu(pid, from);
+          await sendMenu1(pid, from);
 
         } else {
 
@@ -115,6 +115,7 @@ app.post("/webhook", async (req, res) => {
 
       const id = msg.interactive.list_reply.id;
 
+
       if (id === "APPLY") {
         await sendText(pid, from, "Apply menu coming");
       }
@@ -131,6 +132,17 @@ app.post("/webhook", async (req, res) => {
         await sendText(pid, from, "Request menu coming");
       }
 
+
+      // ===== MORE =====
+      if (id === "MORE") {
+        await sendMenu2(pid, from);
+      }
+
+      // ===== BACK =====
+      if (id === "BACK") {
+        await sendMenu1(pid, from);
+      }
+
     }
 
 
@@ -145,9 +157,11 @@ app.post("/webhook", async (req, res) => {
 
 
 
-// ========= MENU (4 RADIO OPTIONS) =========
+/* ===========================
+   MENU 1
+=========================== */
 
-async function sendMenu(pid, to) {
+async function sendMenu1(pid, to) {
 
   await axios.post(
     `https://graph.facebook.com/v23.0/${pid}/messages`,
@@ -173,26 +187,77 @@ async function sendMenu(pid, to) {
 
                 {
                   id: "APPLY",
-                  title: "Apply",
-                  description: "Apply leave / Claim /Overtime /replacement"
+                  title: "Apply"
                 },
 
                 {
                   id: "VIEW",
-                  title: "View",
-                  description: "My calender /Payslip /Time sheet"
+                  title: "View"
                 },
 
                 {
+                  id: "MORE",
+                  title: "More"
+                }
+
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${TOKEN}`
+      }
+    }
+  );
+
+}
+
+
+
+/* ===========================
+   MENU 2 (MORE MENU)
+=========================== */
+
+async function sendMenu2(pid, to) {
+
+  await axios.post(
+    `https://graph.facebook.com/v23.0/${pid}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "list",
+        header: {
+          type: "text",
+          text: "More Options"
+        },
+        body: {
+          text: "Select option"
+        },
+        action: {
+          button: "More",
+          sections: [
+            {
+              title: "Options",
+              rows: [
+
+                {
                   id: "PROFILE",
-                  title: "Profile",
-                  description: "Your profile / Reporting Manager / Reportee"
+                  title: "Profile"
                 },
 
                 {
                   id: "REQUEST",
-                  title: "Raise a request",
-                  description: "Internal Support / External Support"
+                  title: "Request"
+                },
+
+                {
+                  id: "BACK",
+                  title: "Back"
                 }
 
               ]
