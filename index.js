@@ -11,6 +11,7 @@ const VERIFY = process.env.MYTOKEN;
 const GOOGLE_API = process.env.GOOGLE_API;
 
 
+
 // ========= GOOGLE =========
 
 async function getSheet(sheet) {
@@ -18,13 +19,13 @@ async function getSheet(sheet) {
     const res = await axios.get(`${GOOGLE_API}?sheet=${sheet}`);
     return res.data || [];
   } catch (e) {
-    console.log(e.message);
     return [];
   }
 }
 
 
-// ========= CHECK EMP =========
+
+// ========= EMP =========
 
 async function getEmployeeName(mobile) {
 
@@ -66,10 +67,12 @@ app.post("/webhook", async (req, res) => {
 
     const entry = req.body.entry?.[0]?.changes?.[0]?.value;
     const msg = entry?.messages?.[0];
-    const from = msg?.from;
-    const pid = entry?.metadata?.phone_number_id;
 
     if (!msg) return res.sendStatus(200);
+
+    const from = msg.from;
+    const pid = entry.metadata.phone_number_id;
+
 
 
     // ===== TEXT =====
@@ -82,17 +85,13 @@ app.post("/webhook", async (req, res) => {
 
         const name = await getEmployeeName(from);
 
-        if (name) {
-
-          await sendText(pid, from, `Welcome ${name} to HR Place`);
-
-          await sendMenu1(pid, from);
-
-        } else {
-
-          await sendText(pid, from, "You are not registered");
-
+        if (!name) {
+          await sendText(pid, from, "Not registered");
+          return;
         }
+
+        await sendText(pid, from, `Welcome ${name}`);
+        await menuMain(pid, from);
 
       }
 
@@ -100,7 +99,7 @@ app.post("/webhook", async (req, res) => {
 
 
 
-    // ===== BUTTON CLICK =====
+    // ===== BUTTON =====
 
     if (
       msg.type === "interactive" &&
@@ -110,32 +109,43 @@ app.post("/webhook", async (req, res) => {
       const id = msg.interactive.button_reply.id;
 
 
-      if (id === "APPLY") {
-        await sendText(pid, from, "Apply menu coming");
-      }
+      if (id === "MAIN") return menuMain(pid, from);
 
-      if (id === "VIEW") {
-        await sendText(pid, from, "View menu coming");
-      }
+      if (id === "MORE") return menuMore(pid, from);
 
-      if (id === "PROFILE") {
-        await sendText(pid, from, "Profile menu coming");
-      }
+      if (id === "BACK") return menuMain(pid, from);
 
-      if (id === "REQUEST") {
-        await sendText(pid, from, "Request menu coming");
-      }
 
-      if (id === "MORE") {
-        await sendMenu2(pid, from);
-      }
+      // MAIN
+      if (id === "APPLY") return menuApply(pid, from);
+      if (id === "VIEW") return menuView(pid, from);
+      if (id === "PROFILE") return menuProfile(pid, from);
+      if (id === "REQUEST") return menuRequest(pid, from);
 
-      if (id === "BACK") {
-        await sendMenu1(pid, from);
-      }
+
+      // APPLY
+      if (id === "LEAVE") return sendText(pid, from, "Leave");
+      if (id === "CLAIM") return sendText(pid, from, "Claim");
+      if (id === "OT") return sendText(pid, from, "Overtime");
+
+
+      // VIEW
+      if (id === "CAL") return sendText(pid, from, "Calendar");
+      if (id === "PAY") return sendText(pid, from, "Payslip");
+      if (id === "TIME") return sendText(pid, from, "Time Sheet");
+
+
+      // PROFILE
+      if (id === "VPRO") return sendText(pid, from, "Profile");
+      if (id === "RM") return sendText(pid, from, "Manager");
+      if (id === "REPO") return sendText(pid, from, "Reportee");
+
+
+      // REQUEST
+      if (id === "INT") return sendText(pid, from, "Internal");
+      if (id === "EXT") return sendText(pid, from, "External");
 
     }
-
 
     res.sendStatus(200);
 
@@ -148,11 +158,9 @@ app.post("/webhook", async (req, res) => {
 
 
 
-/* ===========================
-   MENU 1 BUTTONS
-=========================== */
+// ========= BUTTON SENDER =========
 
-async function sendMenu1(pid, to) {
+async function sendButtons(pid, to, text, buttons) {
 
   await axios.post(
     `https://graph.facebook.com/v23.0/${pid}/messages`,
@@ -162,38 +170,8 @@ async function sendMenu1(pid, to) {
       type: "interactive",
       interactive: {
         type: "button",
-        body: {
-          text: "HR Place\nSelect option"
-        },
-        action: {
-          buttons: [
-
-            {
-              type: "reply",
-              reply: {
-                id: "APPLY",
-                title: "Apply"
-              }
-            },
-
-            {
-              type: "reply",
-              reply: {
-                id: "VIEW",
-                title: "View"
-              }
-            },
-
-            {
-              type: "reply",
-              reply: {
-                id: "MORE",
-                title: "More"
-              }
-            }
-
-          ]
-        }
+        body: { text },
+        action: { buttons }
       }
     },
     {
@@ -207,70 +185,141 @@ async function sendMenu1(pid, to) {
 
 
 
-/* ===========================
-   MENU 2 BUTTONS
-=========================== */
+// ========= MAIN =========
 
-async function sendMenu2(pid, to) {
+async function menuMain(pid, to) {
 
-  await axios.post(
-    `https://graph.facebook.com/v23.0/${pid}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to,
-      type: "interactive",
-      interactive: {
-        type: "button",
-        body: {
-          text: "More Options"
-        },
-        action: {
-          buttons: [
-
-            {
-              type: "reply",
-              reply: {
-                id: "PROFILE",
-                title: "Profile"
-              }
-            },
-
-            {
-              type: "reply",
-              reply: {
-                id: "REQUEST",
-                title: "Request"
-              }
-            },
-
-            {
-              type: "reply",
-              reply: {
-                id: "BACK",
-                title: "Back"
-              }
-            }
-
-          ]
-        }
-      }
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`
-      }
-    }
+  return sendButtons(
+    pid,
+    to,
+    "Main Menu",
+    [
+      btn("APPLY", "Apply"),
+      btn("VIEW", "View"),
+      btn("MORE", "More")
+    ]
   );
 
 }
 
 
 
-// ========= SEND TEXT =========
+// ========= MORE =========
+
+async function menuMore(pid, to) {
+
+  return sendButtons(
+    pid,
+    to,
+    "More",
+    [
+      btn("PROFILE", "Profile"),
+      btn("REQUEST", "Request"),
+      btn("BACK", "Back")
+    ]
+  );
+
+}
+
+
+
+// ========= APPLY =========
+
+async function menuApply(pid, to) {
+
+  return sendButtons(
+    pid,
+    to,
+    "Apply",
+    [
+      btn("LEAVE", "Leave"),
+      btn("CLAIM", "Claim"),
+      btn("OT", "Overtime")
+    ]
+  );
+
+}
+
+
+
+// ========= VIEW =========
+
+async function menuView(pid, to) {
+
+  return sendButtons(
+    pid,
+    to,
+    "View",
+    [
+      btn("CAL", "Calendar"),
+      btn("PAY", "Payslip"),
+      btn("TIME", "Time Sheet")
+    ]
+  );
+
+}
+
+
+
+// ========= PROFILE =========
+
+async function menuProfile(pid, to) {
+
+  return sendButtons(
+    pid,
+    to,
+    "Profile",
+    [
+      btn("VPRO", "View"),
+      btn("RM", "Manager"),
+      btn("MAIN", "Main Menu")
+    ]
+  );
+
+}
+
+
+
+// ========= REQUEST =========
+
+async function menuRequest(pid, to) {
+
+  return sendButtons(
+    pid,
+    to,
+    "Request",
+    [
+      btn("INT", "Internal"),
+      btn("EXT", "External"),
+      btn("MAIN", "Main Menu")
+    ]
+  );
+
+}
+
+
+
+// ========= BUTTON HELPER =========
+
+function btn(id, title) {
+
+  return {
+    type: "reply",
+    reply: {
+      id,
+      title
+    }
+  };
+
+}
+
+
+
+// ========= TEXT =========
 
 async function sendText(pid, to, body) {
 
-  return axios.post(
+  await axios.post(
     `https://graph.facebook.com/v23.0/${pid}/messages`,
     {
       messaging_product: "whatsapp",
@@ -287,6 +336,7 @@ async function sendText(pid, to, body) {
 }
 
 
-app.listen(process.env.PORT || 3000, () => {
+
+app.listen(3000, () => {
   console.log("HR BOT RUNNING");
 });
