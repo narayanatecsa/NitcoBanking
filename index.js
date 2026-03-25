@@ -57,6 +57,7 @@ app.get("/webhook", (req, res) => {
 });
 
 
+
 // ========= WEBHOOK =========
 
 app.post("/webhook", async (req, res) => {
@@ -83,21 +84,13 @@ app.post("/webhook", async (req, res) => {
 
         if (name) {
 
-          await sendText(
-            pid,
-            from,
-            `Welcome ${name} to HR Place`
-          );
+          await sendText(pid, from, `Welcome ${name} to HR Place`);
 
           await sendMenu1(pid, from);
 
         } else {
 
-          await sendText(
-            pid,
-            from,
-            "You are not registered"
-          );
+          await sendText(pid, from, "You are not registered");
 
         }
 
@@ -106,14 +99,15 @@ app.post("/webhook", async (req, res) => {
     }
 
 
-    // ===== LIST CLICK =====
+
+    // ===== BUTTON CLICK =====
 
     if (
       msg.type === "interactive" &&
-      msg.interactive.list_reply
+      msg.interactive.button_reply
     ) {
 
-      const id = msg.interactive.list_reply.id;
+      const id = msg.interactive.button_reply.id;
 
 
       if (id === "APPLY") {
@@ -132,13 +126,10 @@ app.post("/webhook", async (req, res) => {
         await sendText(pid, from, "Request menu coming");
       }
 
-
-      // ===== MORE =====
       if (id === "MORE") {
         await sendMenu2(pid, from);
       }
 
-      // ===== BACK =====
       if (id === "BACK") {
         await sendMenu1(pid, from);
       }
@@ -158,7 +149,7 @@ app.post("/webhook", async (req, res) => {
 
 
 /* ===========================
-   MENU 1
+   MENU 1 BUTTONS
 =========================== */
 
 async function sendMenu1(pid, to) {
@@ -170,38 +161,37 @@ async function sendMenu1(pid, to) {
       to,
       type: "interactive",
       interactive: {
-        type: "list",
-        header: {
-          type: "text",
-          text: "HR Place"
-        },
+        type: "button",
         body: {
-          text: "Select option"
+          text: "HR Place\nSelect option"
         },
         action: {
-          button: "Main Menu",
-          sections: [
+          buttons: [
+
             {
-              title: "Options",
-              rows: [
+              type: "reply",
+              reply: {
+                id: "APPLY",
+                title: "Apply"
+              }
+            },
 
-                {
-                  id: "APPLY",
-                  title: "Apply"
-                },
+            {
+              type: "reply",
+              reply: {
+                id: "VIEW",
+                title: "View"
+              }
+            },
 
-                {
-                  id: "VIEW",
-                  title: "View"
-                },
-
-                {
-                  id: "MORE",
-                  title: "More"
-                }
-
-              ]
+            {
+              type: "reply",
+              reply: {
+                id: "MORE",
+                title: "More"
+              }
             }
+
           ]
         }
       }
@@ -218,7 +208,7 @@ async function sendMenu1(pid, to) {
 
 
 /* ===========================
-   MENU 2 (MORE MENU)
+   MENU 2 BUTTONS
 =========================== */
 
 async function sendMenu2(pid, to) {
@@ -230,38 +220,37 @@ async function sendMenu2(pid, to) {
       to,
       type: "interactive",
       interactive: {
-        type: "list",
-        header: {
-          type: "text",
+        type: "button",
+        body: {
           text: "More Options"
         },
-        body: {
-          text: "Select option"
-        },
         action: {
-          button: "More",
-          sections: [
+          buttons: [
+
             {
-              title: "Options",
-              rows: [
+              type: "reply",
+              reply: {
+                id: "PROFILE",
+                title: "Profile"
+              }
+            },
 
-                {
-                  id: "PROFILE",
-                  title: "Profile"
-                },
+            {
+              type: "reply",
+              reply: {
+                id: "REQUEST",
+                title: "Request"
+              }
+            },
 
-                {
-                  id: "REQUEST",
-                  title: "Request"
-                },
-
-                {
-                  id: "BACK",
-                  title: "Back"
-                }
-
-              ]
+            {
+              type: "reply",
+              reply: {
+                id: "BACK",
+                title: "Back"
+              }
             }
+
           ]
         }
       }
