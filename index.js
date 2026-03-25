@@ -16,12 +16,22 @@ const processed = new Set();
 // ================= GOOGLE =================
 
 async function getSheet(sheet) {
+
   try {
-    const res = await axios.get(`${GOOGLE_API}?sheet=${sheet}`);
+
+    const res =
+      await axios.get(
+        `${GOOGLE_API}?sheet=${sheet}`
+      );
+
     return res.data || [];
+
   } catch {
+
     return [];
+
   }
+
 }
 
 
@@ -29,53 +39,73 @@ async function getSheet(sheet) {
 
 async function getEmployeeName(mobile) {
 
-  const list = await getSheet("Emp_Details");
+  const list =
+    await getSheet("Emp_Details");
 
   const emp = list.find(
-    x => String(x.Mobile).endsWith(mobile)
+    x =>
+      String(x.Mobile)
+        .endsWith(mobile)
   );
 
-  return emp ? emp.Name : null;
+  return emp
+    ? emp.Name
+    : null;
+
 }
 
 
 // ================= VERIFY =================
 
-app.get("/webhook", (req, res) => {
+app.get("/webhook",
+  (req, res) => {
 
-  if (
-    req.query["hub.mode"] === "subscribe" &&
-    req.query["hub.verify_token"] === VERIFY
-  ) {
-    return res.send(req.query["hub.challenge"]);
+    if (
+      req.query["hub.mode"] ===
+        "subscribe" &&
+      req.query[
+        "hub.verify_token"
+      ] === VERIFY
+    ) {
+      return res.send(
+        req.query["hub.challenge"]
+      );
+    }
+
+    res.sendStatus(403);
+
   }
-
-  res.sendStatus(403);
-
-});
+);
 
 
 // ================= WEBHOOK =================
 
-app.post("/webhook", async (req, res) => {
+app.post("/webhook",
+async (req, res) => {
 
   try {
 
     const change =
-      req.body.entry?.[0]?.changes?.[0]?.value;
+      req.body.entry?.[0]
+      ?.changes?.[0]?.value;
 
-    if (!change) return res.sendStatus(200);
+    if (!change)
+      return res.sendStatus(200);
 
-    // ignore delivery / read / status
+
+    // ignore status updates
     if (change.statuses)
       return res.sendStatus(200);
 
-    const msg = change.messages?.[0];
 
-    if (!msg) return res.sendStatus(200);
+    const msg =
+      change.messages?.[0];
+
+    if (!msg)
+      return res.sendStatus(200);
 
 
-    // ===== DUPLICATE FILTER =====
+    // ===== duplicate filter =====
 
     const msgId = msg.id;
 
@@ -85,18 +115,23 @@ app.post("/webhook", async (req, res) => {
     processed.add(msgId);
 
 
-    const from = msg.from;
+    const from =
+      msg.from;
+
     const pid =
-      change.metadata.phone_number_id;
+      change.metadata
+      .phone_number_id;
 
 
 
-    // ========= TEXT =========
+    // ================= TEXT =================
 
     if (msg.type === "text") {
 
       const text =
-        msg.text.body.toLowerCase();
+        msg.text.body
+          .toLowerCase()
+          .trim();
 
       if (
         text === "hi" ||
@@ -104,7 +139,9 @@ app.post("/webhook", async (req, res) => {
       ) {
 
         const name =
-          await getEmployeeName(from);
+          await getEmployeeName(
+            from
+          );
 
         if (!name) {
 
@@ -115,15 +152,20 @@ app.post("/webhook", async (req, res) => {
           );
 
           return res.sendStatus(200);
+
         }
 
         await sendText(
           pid,
           from,
-          `Welcome ${name}`
+          `Welcome ${name} to HR Place`
         );
 
-        await menuMain(pid, from);
+        await menuMain(
+          pid,
+          from
+        );
+
       }
 
       return res.sendStatus(200);
@@ -131,93 +173,135 @@ app.post("/webhook", async (req, res) => {
 
 
 
-    // ========= BUTTON =========
+    // ================= BUTTON =================
 
     if (
       msg.type === "interactive" &&
-      msg.interactive?.button_reply
+      msg.interactive
+        ?.button_reply
     ) {
 
       const id =
-        msg.interactive.button_reply.id;
+        msg.interactive
+        .button_reply.id;
 
-
-
-      // NAV
 
       if (id === "MAIN")
-        return menuMain(pid, from);
+        return menuMain(
+          pid,
+          from
+        );
 
       if (id === "MORE")
-        return menuMore(pid, from);
+        return menuMore(
+          pid,
+          from
+        );
 
       if (id === "BACK")
-        return menuMain(pid, from);
+        return menuMain(
+          pid,
+          from
+        );
 
-
-
-      // MAIN
 
       if (id === "APPLY")
-        return menuApply(pid, from);
+        return menuApply(
+          pid,
+          from
+        );
 
       if (id === "VIEW")
-        return menuView(pid, from);
+        return menuView(
+          pid,
+          from
+        );
 
       if (id === "PROFILE")
-        return menuProfile(pid, from);
+        return menuProfile(
+          pid,
+          from
+        );
 
       if (id === "REQUEST")
-        return menuRequest(pid, from);
+        return menuRequest(
+          pid,
+          from
+        );
 
-
-
-      // APPLY
 
       if (id === "LEAVE")
-        return sendText(pid, from, "Leave");
+        return sendText(
+          pid,
+          from,
+          "Leave"
+        );
 
       if (id === "CLAIM")
-        return sendText(pid, from, "Claim");
+        return sendText(
+          pid,
+          from,
+          "Claim"
+        );
 
       if (id === "OT")
-        return sendText(pid, from, "Overtime");
+        return sendText(
+          pid,
+          from,
+          "Overtime"
+        );
 
-
-
-      // VIEW
 
       if (id === "CAL")
-        return sendText(pid, from, "Calendar");
+        return sendText(
+          pid,
+          from,
+          "Calendar"
+        );
 
       if (id === "PAY")
-        return sendText(pid, from, "Payslip");
+        return sendText(
+          pid,
+          from,
+          "Payslip"
+        );
 
       if (id === "TIME")
-        return sendText(pid, from, "Time Sheet");
+        return sendText(
+          pid,
+          from,
+          "Time Sheet"
+        );
 
-
-
-      // PROFILE
 
       if (id === "VPRO")
-        return sendText(pid, from, "Profile");
+        return sendText(
+          pid,
+          from,
+          "Profile"
+        );
 
       if (id === "RM")
-        return sendText(pid, from, "Manager");
+        return sendText(
+          pid,
+          from,
+          "Manager"
+        );
 
-      if (id === "REPO")
-        return sendText(pid, from, "Reportee");
-
-
-
-      // REQUEST
 
       if (id === "INT")
-        return sendText(pid, from, "Internal");
+        return sendText(
+          pid,
+          from,
+          "Internal"
+        );
 
       if (id === "EXT")
-        return sendText(pid, from, "External");
+        return sendText(
+          pid,
+          from,
+          "External"
+        );
 
     }
 
@@ -226,6 +310,7 @@ app.post("/webhook", async (req, res) => {
   } catch (e) {
 
     console.log(e);
+
     res.sendStatus(200);
 
   }
@@ -234,6 +319,16 @@ app.post("/webhook", async (req, res) => {
 
 
 // ================= BUTTON =================
+
+function btn(id, title) {
+
+  return {
+    type: "reply",
+    reply: { id, title }
+  };
+
+}
+
 
 async function sendButtons(
   pid,
@@ -256,20 +351,11 @@ async function sendButtons(
     },
     {
       headers: {
-        Authorization: `Bearer ${TOKEN}`
+        Authorization:
+          `Bearer ${TOKEN}`
       }
     }
   );
-
-}
-
-
-function btn(id, title) {
-
-  return {
-    type: "reply",
-    reply: { id, title }
-  };
 
 }
 
@@ -291,7 +377,6 @@ async function menuMain(pid, to) {
 
 }
 
-
 async function menuMore(pid, to) {
 
   return sendButtons(
@@ -306,7 +391,6 @@ async function menuMore(pid, to) {
   );
 
 }
-
 
 async function menuApply(pid, to) {
 
@@ -323,7 +407,6 @@ async function menuApply(pid, to) {
 
 }
 
-
 async function menuView(pid, to) {
 
   return sendButtons(
@@ -339,7 +422,6 @@ async function menuView(pid, to) {
 
 }
 
-
 async function menuProfile(pid, to) {
 
   return sendButtons(
@@ -354,7 +436,6 @@ async function menuProfile(pid, to) {
   );
 
 }
-
 
 async function menuRequest(pid, to) {
 
@@ -389,7 +470,8 @@ async function sendText(
     },
     {
       headers: {
-        Authorization: `Bearer ${TOKEN}`
+        Authorization:
+          `Bearer ${TOKEN}`
       }
     }
   );
@@ -397,6 +479,10 @@ async function sendText(
 }
 
 
-app.listen(3000, () =>
-  console.log("HR BOT RUNNING PERFECT")
+app.listen(
+  3000,
+  () =>
+    console.log(
+      "HR BOT RUNNING PERFECT"
+    )
 );
