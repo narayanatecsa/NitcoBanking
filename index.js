@@ -12,30 +12,23 @@ const GOOGLE_API = process.env.GOOGLE_API;
 
 const processed = new Set();
 
+const LOGO =
+"https://poojalist.com/Images/HRplace.jpeg";
+
 
 // ================= GOOGLE =================
 
 async function getSheet(sheet) {
-
   try {
-
     const res =
       await axios.get(
         `${GOOGLE_API}?sheet=${sheet}`
       );
-
     return res.data || [];
-
   } catch {
-
     return [];
-
   }
-
 }
-
-
-// ================= EMP =================
 
 async function getEmployeeName(mobile) {
 
@@ -51,31 +44,29 @@ async function getEmployeeName(mobile) {
   return emp
     ? emp.Name
     : null;
-
 }
+
 
 
 // ================= VERIFY =================
 
-app.get("/webhook",
-  (req, res) => {
+app.get("/webhook", (req, res) => {
 
-    if (
-      req.query["hub.mode"] ===
-        "subscribe" &&
-      req.query[
-        "hub.verify_token"
-      ] === VERIFY
-    ) {
-      return res.send(
-        req.query["hub.challenge"]
-      );
-    }
-
-    res.sendStatus(403);
-
+  if (
+    req.query["hub.mode"] ===
+      "subscribe" &&
+    req.query["hub.verify_token"]
+      === VERIFY
+  ) {
+    return res.send(
+      req.query["hub.challenge"]
+    );
   }
-);
+
+  res.sendStatus(403);
+
+});
+
 
 
 // ================= WEBHOOK =================
@@ -92,11 +83,8 @@ async (req, res) => {
     if (!change)
       return res.sendStatus(200);
 
-
-    // ignore status updates
     if (change.statuses)
       return res.sendStatus(200);
-
 
     const msg =
       change.messages?.[0];
@@ -104,8 +92,6 @@ async (req, res) => {
     if (!msg)
       return res.sendStatus(200);
 
-
-    // ===== duplicate filter =====
 
     const msgId = msg.id;
 
@@ -120,205 +106,176 @@ async (req, res) => {
 
     const pid =
       change.metadata
-      .phone_number_id;
+        .phone_number_id;
 
 
 
-    // ================= TEXT =================
+// ================= TEXT =================
 
-    if (msg.type === "text") {
+if (msg.type === "text") {
 
-      const text =
-        msg.text.body
-          .toLowerCase()
-          .trim();
+  const text =
+    msg.text.body
+      .toLowerCase()
+      .trim();
 
-      if (
-        text === "hi" ||
-        text === "hello"
-      ) {
+  if (
+    text === "hi" ||
+    text === "hello"
+  ) {
 
-        const name =
-          await getEmployeeName(
-            from
-          );
+    const name =
+      await getEmployeeName(
+        from
+      );
 
-        if (!name) {
+    if (!name) {
 
-          await sendText(
-            pid,
-            from,
-            "You are not registered"
-          );
-
-          return res.sendStatus(200);
-
-        }
-
-        await sendText(
-          pid,
-          from,
-          `Welcome ${name} to HR Place`
-        );
-
-        await menuMain(
-          pid,
-          from
-        );
-
-      }
+      await sendText(
+        pid,
+        from,
+        "❌ Your number is not registered in HR Place."
+      );
 
       return res.sendStatus(200);
     }
 
 
-
-    // ================= BUTTON =================
-
-    if (
-      msg.type === "interactive" &&
-      msg.interactive
-        ?.button_reply
-    ) {
-
-      const id =
-        msg.interactive
-        .button_reply.id;
+    // logo
+    await sendImage(
+      pid,
+      from,
+      LOGO
+    );
 
 
-      if (id === "MAIN")
-        return menuMain(
-          pid,
-          from
-        );
+    // greeting
 
-      if (id === "MORE")
-        return menuMore(
-          pid,
-          from
-        );
+    await sendText(
+      pid,
+      from,
+`*Welcome ${name}*
 
-      if (id === "BACK")
-        return menuMain(
-          pid,
-          from
-        );
+Welcome to *HR PLACE*
 
+Please select from the options below`
+    );
 
-      if (id === "APPLY")
-        return menuApply(
-          pid,
-          from
-        );
-
-      if (id === "VIEW")
-        return menuView(
-          pid,
-          from
-        );
-
-      if (id === "PROFILE")
-        return menuProfile(
-          pid,
-          from
-        );
-
-      if (id === "REQUEST")
-        return menuRequest(
-          pid,
-          from
-        );
-
-
-      if (id === "LEAVE")
-        return sendText(
-          pid,
-          from,
-          "Leave"
-        );
-
-      if (id === "CLAIM")
-        return sendText(
-          pid,
-          from,
-          "Claim"
-        );
-
-      if (id === "OT")
-        return sendText(
-          pid,
-          from,
-          "Overtime"
-        );
-
-
-      if (id === "CAL")
-        return sendText(
-          pid,
-          from,
-          "Calendar"
-        );
-
-      if (id === "PAY")
-        return sendText(
-          pid,
-          from,
-          "Payslip"
-        );
-
-      if (id === "TIME")
-        return sendText(
-          pid,
-          from,
-          "Time Sheet"
-        );
-
-
-      if (id === "VPRO")
-        return sendText(
-          pid,
-          from,
-          "Profile"
-        );
-
-      if (id === "RM")
-        return sendText(
-          pid,
-          from,
-          "Manager"
-        );
-
-
-      if (id === "INT")
-        return sendText(
-          pid,
-          from,
-          "Internal"
-        );
-
-      if (id === "EXT")
-        return sendText(
-          pid,
-          from,
-          "External"
-        );
-
-    }
-
-    res.sendStatus(200);
-
-  } catch (e) {
-
-    console.log(e);
-
-    res.sendStatus(200);
+    await menuMain(
+      pid,
+      from
+    );
 
   }
+
+  return res.sendStatus(200);
+}
+
+
+
+// ================= BUTTON =================
+
+if (
+  msg.type === "interactive" &&
+  msg.interactive?.button_reply
+) {
+
+  const id =
+    msg.interactive
+      .button_reply.id;
+
+
+
+  if (id === "MAIN")
+    return menuMain(pid, from);
+
+  if (id === "LEAVE")
+    return menuLeave(pid, from);
+
+  if (id === "CLAIM")
+    return menuClaim(pid, from);
+
+  if (id === "PAY")
+    return menuPayroll(pid, from);
+
+  if (id === "QUICK")
+    return menuQuick(pid, from);
+
+  if (id === "BACK")
+    return menuMain(pid, from);
+
+  if (id === "SUBMIT_CLAIM")
+    return claimLink(pid, from);
+
+}
+
+
+
+res.sendStatus(200);
+
+} catch (e) {
+
+console.log(e);
+res.sendStatus(200);
+
+}
 
 });
 
 
-// ================= BUTTON =================
+
+// ================= SEND =================
+
+async function sendText(
+  pid,
+  to,
+  body
+) {
+
+  await axios.post(
+    `https://graph.facebook.com/v23.0/${pid}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      text: { body }
+    },
+    {
+      headers: {
+        Authorization:
+          `Bearer ${TOKEN}`
+      }
+    }
+  );
+
+}
+
+
+
+async function sendImage(
+  pid,
+  to,
+  url
+) {
+
+  await axios.post(
+    `https://graph.facebook.com/v23.0/${pid}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to,
+      type: "image",
+      image: { link: url }
+    },
+    {
+      headers: {
+        Authorization:
+          `Bearer ${TOKEN}`
+      }
+    }
+  );
+
+}
+
+
 
 function btn(id, title) {
 
@@ -360,129 +317,211 @@ async function sendButtons(
 }
 
 
+
 // ================= MENUS =================
 
-async function menuMain(pid, to) {
 
-  return sendButtons(
-    pid,
-    to,
-    "Main Menu",
-    [
-      btn("APPLY", "Apply"),
-      btn("VIEW", "View"),
-      btn("MORE", "More")
-    ]
-  );
+// MAIN MENU
 
-}
-
-async function menuMore(pid, to) {
-
-  return sendButtons(
-    pid,
-    to,
-    "More",
-    [
-      btn("PROFILE", "Profile"),
-      btn("REQUEST", "Request"),
-      btn("BACK", "Back")
-    ]
-  );
-
-}
-
-async function menuApply(pid, to) {
-
-  return sendButtons(
-    pid,
-    to,
-    "Apply",
-    [
-      btn("LEAVE", "Leave"),
-      btn("CLAIM", "Claim"),
-      btn("OT", "Overtime")
-    ]
-  );
-
-}
-
-async function menuView(pid, to) {
-
-  return sendButtons(
-    pid,
-    to,
-    "View",
-    [
-      btn("CAL", "Calendar"),
-      btn("PAY", "Payslip"),
-      btn("TIME", "Time")
-    ]
-  );
-
-}
-
-async function menuProfile(pid, to) {
-
-  return sendButtons(
-    pid,
-    to,
-    "Profile",
-    [
-      btn("VPRO", "View"),
-      btn("RM", "Manager"),
-      btn("MAIN", "Main Menu")
-    ]
-  );
-
-}
-
-async function menuRequest(pid, to) {
-
-  return sendButtons(
-    pid,
-    to,
-    "Request",
-    [
-      btn("INT", "Internal"),
-      btn("EXT", "External"),
-      btn("MAIN", "Main Menu")
-    ]
-  );
-
-}
-
-
-// ================= TEXT =================
-
-async function sendText(
+async function menuMain(
   pid,
-  to,
-  body
+  to
 ) {
 
-  await axios.post(
-    `https://graph.facebook.com/v23.0/${pid}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to,
-      text: { body }
-    },
-    {
-      headers: {
-        Authorization:
-          `Bearer ${TOKEN}`
-      }
-    }
+  return sendButtons(
+    pid,
+    to,
+`📋 *Main Menu*
+
+Please choose an option`,
+    [
+
+      btn("LEAVE",
+        "📅 Leave & Attendance"),
+
+      btn("CLAIM",
+        "💰 Claims"),
+
+      btn("PAY",
+        "🏦 Payroll"),
+
+    ]
   );
 
 }
+
+
+
+// LEAVE
+
+async function menuLeave(
+  pid,
+  to
+) {
+
+  return sendButtons(
+    pid,
+    to,
+`📅 *Leave & Attendance*
+
+Select option`,
+    [
+
+      btn("APPLY",
+        "Apply Leave"),
+
+      btn("VIEW",
+        "View Balance"),
+
+      btn("BACK",
+        "Back"),
+
+    ]
+  );
+
+}
+
+
+
+// CLAIM
+
+async function menuClaim(
+  pid,
+  to
+) {
+
+  return sendButtons(
+    pid,
+    to,
+`💰 *Claims & Reimbursements*`,
+    [
+
+      btn(
+        "SUBMIT_CLAIM",
+        "Submit Claim"
+      ),
+
+      btn(
+        "STATUS",
+        "Claim Status"
+      ),
+
+      btn(
+        "BACK",
+        "Back"
+      ),
+
+    ]
+  );
+
+}
+
+
+
+// PAYROLL
+
+async function menuPayroll(
+  pid,
+  to
+) {
+
+  return sendButtons(
+    pid,
+    to,
+`🏦 *Payroll & Bank*`,
+    [
+
+      btn(
+        "PAYSLIP",
+        "Payslip"
+      ),
+
+      btn(
+        "BANK",
+        "Bank Details"
+      ),
+
+      btn(
+        "BACK",
+        "Back"
+      ),
+
+    ]
+  );
+
+}
+
+
+
+// QUICK
+
+async function menuQuick(
+  pid,
+  to
+) {
+
+  return sendButtons(
+    pid,
+    to,
+`⚡ Quick Services`,
+    [
+
+      btn(
+        "POLICY",
+        "Policies"
+      ),
+
+      btn(
+        "HR",
+        "Contact HR"
+      ),
+
+      btn(
+        "MAIN",
+        "Main Menu"
+      ),
+
+    ]
+  );
+
+}
+
+
+
+// CLAIM LINK
+
+async function claimLink(
+  pid,
+  to
+) {
+
+  await sendText(
+    pid,
+    to,
+`To submit a claim,
+
+Go to:
+
+https://application.hrplace.com.my/claims/
+
+Upload receipts and submit.
+
+Press Main Menu to continue`
+  );
+
+  await menuMain(
+    pid,
+    to
+  );
+
+}
+
 
 
 app.listen(
   3000,
   () =>
     console.log(
-      "HR BOT RUNNING PERFECT"
+      "HR PLACE BOT RUNNING"
     )
 );
