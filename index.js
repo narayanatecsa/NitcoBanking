@@ -8,13 +8,16 @@ app.use(bodyParser.json());
 
 const TOKEN = process.env.TOKEN;
 const VERIFY = process.env.MYTOKEN;
-const GOOGLE_API = process.env.GOOGLE_API;
-
-const FLOW_ID = "1215671090363734";
+const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
 
+// جلوگیری duplicate messages
 const processed = new Set();
+
+
+// ========= DELAY =========
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 
 // ========= GREETING =========
@@ -41,14 +44,19 @@ app.get("/webhook", (req, res) => {
 // ========= WEBHOOK =========
 app.post("/webhook", async (req, res) => {
   try {
+
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
+
+    // ❌ Ignore delivery/status updates (MAIN FIX)
     if (change.statuses) return res.sendStatus(200);
 
     const msg = change.messages?.[0];
     if (!msg) return res.sendStatus(200);
 
     const id = msg.id;
+
+    // ❌ Prevent duplicate execution
     if (processed.has(id)) return res.sendStatus(200);
     processed.add(id);
 
@@ -58,21 +66,31 @@ app.post("/webhook", async (req, res) => {
 
     // ========= TEXT =========
     if (msg.type === "text") {
+
       const text = msg.text.body.toLowerCase().trim();
 
       if (text === "hi" || text === "hello") {
 
+        // LOGO
         await sendImage(pid, from, LOGO);
+        await delay(1500);
 
+        // GREETING
         const g = getGreeting();
-
         await sendText(
           pid,
           from,
           `*${g}*\n\nWelcome to *HR PLACE*\nPlease select option`
         );
 
+        await delay(1000);
+
+        // MAIN MENU
         await menuMain(pid, from);
+        await delay(1000);
+
+        // QUICK MENU
+        await menuQuick(pid, from);
       }
 
       return res.sendStatus(200);
@@ -85,12 +103,22 @@ app.post("/webhook", async (req, res) => {
       const id = msg.interactive.button_reply.id;
 
       if (id === "MAIN") return menuMain(pid, from);
+
       if (id === "LEAVE") return menuLeave(pid, from);
+
       if (id === "CLAIM") return menuClaim(pid, from);
+
       if (id === "PAY") return menuPay(pid, from);
+
       if (id === "BACK") return menuMain(pid, from);
 
-      // 🔥 APPLY LEAVE → SEND FLOW
+      if (id === "POL")
+        return sendText(pid, from, "📘 Policies will be shared soon");
+
+      if (id === "HR")
+        return sendText(pid, from, "👨‍💼 Contact HR: hr@company.com");
+
+      // ✅ FLOW TRIGGER
       if (id === "APPLY") {
         return sendFlow(pid, from);
       }
@@ -98,17 +126,16 @@ app.post("/webhook", async (req, res) => {
       if (id === "SUBMIT_CLAIM") return claimLink(pid, from);
     }
 
-    res.sendStatus(200);
+    return res.sendStatus(200);
 
   } catch (e) {
     console.log(e);
-    res.sendStatus(200);
+    return res.sendStatus(200);
   }
 });
 
 
-// ========= SEND FLOW =========
-
+// ========= FLOW =========
 async function sendFlow(pid, to) {
   await axios.post(
     `https://graph.facebook.com/v23.0/${pid}/messages`,
@@ -125,7 +152,7 @@ async function sendFlow(pid, to) {
           name: "flow",
           parameters: {
             flow_message_version: "3",
-            flow_id: process.env.FLOW_ID,
+            flow_id: FLOW_ID,
             flow_cta: "Apply Now"
           }
         }
@@ -138,6 +165,8 @@ async function sendFlow(pid, to) {
     }
   );
 }
+
+
 // ========= SEND =========
 async function sendText(pid, to, body) {
   await axios.post(
@@ -148,9 +177,7 @@ async function sendText(pid, to, body) {
       text: { body }
     },
     {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`
-      }
+      headers: { Authorization: `Bearer ${TOKEN}` }
     }
   );
 }
@@ -165,18 +192,15 @@ async function sendImage(pid, to, url) {
       image: { link: url }
     },
     {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`
-      }
+      headers: { Authorization: `Bearer ${TOKEN}` }
     }
   );
 }
 
+
+// ========= BUTTON =========
 function btn(id, title) {
-  return {
-    type: "reply",
-    reply: { id, title }
-  };
+  return { type: "reply", reply: { id, title } };
 }
 
 async function sendButtons(pid, to, text, buttons) {
@@ -193,20 +217,27 @@ async function sendButtons(pid, to, text, buttons) {
       }
     },
     {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`
-      }
+      headers: { Authorization: `Bearer ${TOKEN}` }
     }
   );
 }
 
 
 // ========= MENUS =========
+
 async function menuMain(pid, to) {
   return sendButtons(pid, to, "📋 *Main Menu*", [
     btn("LEAVE", "📅 Leave"),
     btn("CLAIM", "💰 Claims"),
     btn("PAY", "🏦 Payroll")
+  ]);
+}
+
+async function menuQuick(pid, to) {
+  return sendButtons(pid, to, "⚡ Quick Services", [
+    btn("POL", "📘 Policies"),
+    btn("HR", "👨‍💼 Contact HR"),
+    btn("MAIN", "🏠 Main Menu")
   ]);
 }
 
