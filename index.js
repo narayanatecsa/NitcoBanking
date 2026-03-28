@@ -124,8 +124,10 @@ async function sendFlow(pid, to) {
           name: "flow",
           parameters: {
             flow_message_version: "3",
-            flow_id: "1215671090363734",
-            flow_cta: "Apply Now"
+            flow_id: process.env.FLOW_ID,      // ✅ from .env
+            flow_token: process.env.FLOW_TOKEN, // ✅ REQUIRED
+            flow_cta: "Apply Now",
+            mode: "published"                 // ✅ VERY IMPORTANT
           }
         }
       }
