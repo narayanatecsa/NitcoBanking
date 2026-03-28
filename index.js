@@ -125,23 +125,18 @@ async function sendFlow(pid, to) {
           parameters: {
             flow_message_version: "3",
             flow_id: "1215671090363734",
-            flow_cta: "Apply Now",
-
-            // ✅ REQUIRED FIX
-            flow_token: "leave_form_token_123"
+            flow_cta: "Apply Now"
           }
         }
       }
     },
     {
       headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        "Content-Type": "application/json"
+        Authorization: `Bearer ${TOKEN}`
       }
     }
   );
 }
-
 // ========= SEND =========
 async function sendText(pid, to, body) {
   await axios.post(
