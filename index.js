@@ -108,6 +108,7 @@ app.post("/webhook", async (req, res) => {
 
 
 // ========= SEND FLOW =========
+
 async function sendFlow(pid, to) {
   await axios.post(
     `https://graph.facebook.com/v23.0/${pid}/messages`,
@@ -124,10 +125,8 @@ async function sendFlow(pid, to) {
           name: "flow",
           parameters: {
             flow_message_version: "3",
-            flow_id: process.env.FLOW_ID,      // ✅ from .env
-            flow_token: process.env.FLOW_TOKEN, // ✅ REQUIRED
-            flow_cta: "Apply Now",
-            mode: "published"                 // ✅ VERY IMPORTANT
+            flow_id: process.env.FLOW_ID,
+            flow_cta: "Apply Now"
           }
         }
       }
