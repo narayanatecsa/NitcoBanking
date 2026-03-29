@@ -12,11 +12,9 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
 
-// prevent duplicate messages
-const processed = new Set();
-
-// prevent repeated flow trigger
-const flowLock = new Map();
+// 🔥 PRODUCTION FIXES
+const processed = new Map();   // message dedupe with time
+const flowLock = new Map();    // prevent repeat flow trigger
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -45,16 +43,17 @@ app.post("/webhook", async (req, res) => {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
 
-    // ignore delivery/status
+    // ignore delivery updates
     if (change.statuses) return res.sendStatus(200);
 
     const msg = change.messages?.[0];
-    if (!msg || !msg.from) return res.sendStatus(200);
+    if (!msg || !msg.from || !msg.id) return res.sendStatus(200);
 
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
+    const now = Date.now();
 
-    // ========= FLOW RESPONSE (CONFIRMATION) =========
+    // ========= FLOW RESPONSE =========
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
       console.log("Flow submitted");
 
@@ -63,7 +62,7 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // allow only text or button
+    // ========= FILTER ONLY USER ACTION =========
     if (
       msg.type !== "text" &&
       !(msg.type === "interactive" && msg.interactive?.button_reply)
@@ -71,12 +70,23 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    const id = msg.id;
+    // ========= DUPLICATE BLOCK (5 MIN TTL) =========
+    if (processed.has(msg.id)) {
+      const old = processed.get(msg.id);
+      if (now - old < 300000) {
+        console.log("Duplicate webhook blocked");
+        return res.sendStatus(200);
+      }
+    }
 
-    // prevent duplicate execution
-    if (processed.has(id)) return res.sendStatus(200);
-    processed.add(id);
-    if (processed.size > 1000) processed.clear();
+    processed.set(msg.id, now);
+
+    // cleanup old cache
+    if (processed.size > 1000) {
+      for (let [key, time] of processed) {
+        if (now - time > 300000) processed.delete(key);
+      }
+    }
 
     // ========= TEXT =========
     if (msg.type === "text") {
@@ -147,8 +157,6 @@ app.post("/webhook", async (req, res) => {
 
       // ========= APPLY FLOW =========
       if (btnId === "APPLY") {
-
-        const now = Date.now();
 
         if (flowLock.has(from)) {
           const last = flowLock.get(from);
@@ -292,7 +300,11 @@ async function menuClaim(pid, to) {
 }
 
 async function claimLink(pid, to) {
-  await sendText(pid, to, "Submit claim:\nhttps://application.hrplace.com.my/claims/");
+  await sendText(
+    pid,
+    to,
+    "Submit claim:\nhttps://application.hrplace.com.my/claims/"
+  );
 }
 
 async function menuPay(pid, to) {
