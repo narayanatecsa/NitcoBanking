@@ -16,9 +16,8 @@ const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
 const processed = new Set();
 
 // prevent repeated flow trigger
-const flowLock = new Set();
+const flowLock = new Map();
 
-// ========= DELAY =========
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 // ========= GREETING =========
@@ -46,7 +45,7 @@ app.post("/webhook", async (req, res) => {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
 
-    // ❌ ignore delivery/status
+    // ignore delivery/status
     if (change.statuses) return res.sendStatus(200);
 
     const msg = change.messages?.[0];
@@ -55,13 +54,16 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
-    // ❌ ignore FLOW responses completely (MAIN FIX)
+    // ========= FLOW RESPONSE (CONFIRMATION) =========
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
-      console.log("Flow submit ignored");
+      console.log("Flow submitted");
+
+      await sendText(pid, from, "✅ Leave Applied Successfully");
+
       return res.sendStatus(200);
     }
 
-    // ❌ allow only TEXT or BUTTON clicks
+    // allow only text or button
     if (
       msg.type !== "text" &&
       !(msg.type === "interactive" && msg.interactive?.button_reply)
@@ -71,7 +73,7 @@ app.post("/webhook", async (req, res) => {
 
     const id = msg.id;
 
-    // ❌ prevent duplicate execution
+    // prevent duplicate execution
     if (processed.has(id)) return res.sendStatus(200);
     processed.add(id);
     if (processed.size > 1000) processed.clear();
@@ -83,7 +85,7 @@ app.post("/webhook", async (req, res) => {
       if (text === "hi" || text === "hello") {
 
         await sendImage(pid, from, LOGO);
-        await delay(1500);
+        await delay(1000);
 
         const g = getGreeting();
 
@@ -93,11 +95,10 @@ app.post("/webhook", async (req, res) => {
           `*${g}*\n\nWelcome to *HR PLACE*\nPlease select option`
         );
 
-        await delay(1000);
-
+        await delay(800);
         await menuMain(pid, from);
-        await delay(1000);
 
+        await delay(800);
         await menuQuick(pid, from);
       }
 
@@ -144,18 +145,22 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      // ✅ FLOW TRIGGER (LOCK FIX)
+      // ========= APPLY FLOW =========
       if (btnId === "APPLY") {
 
+        const now = Date.now();
+
         if (flowLock.has(from)) {
-          return res.sendStatus(200);
+          const last = flowLock.get(from);
+          if (now - last < 60000) {
+            console.log("Blocked duplicate flow");
+            return res.sendStatus(200);
+          }
         }
 
-        flowLock.add(from);
+        flowLock.set(from, now);
 
         await sendFlow(pid, from);
-
-        setTimeout(() => flowLock.delete(from), 10000);
 
         return res.sendStatus(200);
       }
@@ -174,7 +179,6 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-
 // ========= FLOW =========
 async function sendFlow(pid, to) {
   await axios.post(
@@ -185,9 +189,7 @@ async function sendFlow(pid, to) {
       type: "interactive",
       interactive: {
         type: "flow",
-        body: {
-          text: "📄 Apply Leave Form"
-        },
+        body: { text: "📄 Apply Leave Form" },
         action: {
           name: "flow",
           parameters: {
@@ -199,9 +201,7 @@ async function sendFlow(pid, to) {
       }
     },
     {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`
-      }
+      headers: { Authorization: `Bearer ${TOKEN}` }
     }
   );
 }
@@ -292,11 +292,7 @@ async function menuClaim(pid, to) {
 }
 
 async function claimLink(pid, to) {
-  await sendText(
-    pid,
-    to,
-    `Submit claim:\nhttps://application.hrplace.com.my/claims/`
-  );
+  await sendText(pid, to, "Submit claim:\nhttps://application.hrplace.com.my/claims/");
 }
 
 async function menuPay(pid, to) {
