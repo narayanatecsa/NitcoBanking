@@ -12,9 +12,8 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
 
-// 🔥 MASTER PROTECTION SYSTEM
-const userState = new Map();   // action tracking
-const processed = new Map();   // message dedupe
+// 🔥 CORE PROTECTION
+const userState = new Map();
 
 // ========= HELPERS =========
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
@@ -26,8 +25,8 @@ function getGreeting() {
   return "Good Evening";
 }
 
-// ✅ ACTION BLOCKER (MAIN FIX)
-function blockUserAction(user, action, time = 300000) {
+// ✅ BLOCK USER ACTION (ANTI-REPEAT)
+function blockUser(user, action, time = 300000) {
   const key = user + "_" + action;
   const now = Date.now();
 
@@ -61,30 +60,30 @@ app.post("/webhook", async (req, res) => {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
 
-    // ignore delivery events
+    // ignore delivery updates
     if (change.statuses) return res.sendStatus(200);
 
     const msg = change.messages?.[0];
-    if (!msg || !msg.from || !msg.id) return res.sendStatus(200);
+    if (!msg || !msg.from || !msg.timestamp) {
+      return res.sendStatus(200);
+    }
 
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
+
+    // 🔴 FINAL FIX: IGNORE OLD RETRY MESSAGES
+    const msgTime = parseInt(msg.timestamp) * 1000;
     const now = Date.now();
 
-    // ========= HARD DUPLICATE BLOCK =========
-    if (processed.has(msg.id)) {
-      const last = processed.get(msg.id);
-      if (now - last < 600000) { // 10 min
-        console.log("Duplicate blocked");
-        return res.sendStatus(200);
-      }
+    if (now - msgTime > 60000) {   // 60 sec
+      console.log("Old message ignored");
+      return res.sendStatus(200);
     }
-    processed.set(msg.id, now);
 
     // ========= FLOW SUBMIT =========
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
-      if (blockUserAction(from, "FLOW_SUBMIT", 300000)) {
+      if (blockUser(from, "FLOW_SUBMIT", 300000)) {
         return res.sendStatus(200);
       }
 
@@ -106,7 +105,7 @@ app.post("/webhook", async (req, res) => {
 
       if (text === "hi" || text === "hello") {
 
-        if (blockUserAction(from, "GREETING", 60000)) {
+        if (blockUser(from, "GREETING", 60000)) {
           return res.sendStatus(200);
         }
 
@@ -137,13 +136,13 @@ app.post("/webhook", async (req, res) => {
       const btnId = msg.interactive.button_reply.id;
 
       if (btnId === "MAIN") {
-        if (blockUserAction(from, "MAIN", 60000)) return res.sendStatus(200);
+        if (blockUser(from, "MAIN", 60000)) return res.sendStatus(200);
         await menuMain(pid, from);
         return res.sendStatus(200);
       }
 
       if (btnId === "LEAVE") {
-        if (blockUserAction(from, "LEAVE", 60000)) return res.sendStatus(200);
+        if (blockUser(from, "LEAVE", 60000)) return res.sendStatus(200);
         await menuLeave(pid, from);
         return res.sendStatus(200);
       }
@@ -176,7 +175,7 @@ app.post("/webhook", async (req, res) => {
       // ========= APPLY FLOW =========
       if (btnId === "APPLY") {
 
-        if (blockUserAction(from, "APPLY", 300000)) {
+        if (blockUser(from, "APPLY", 300000)) {
           return res.sendStatus(200);
         }
 
