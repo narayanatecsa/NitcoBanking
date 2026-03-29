@@ -12,13 +12,14 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
 
-// جلوگیری duplicate messages
+// prevent duplicate messages
 const processed = new Set();
 
+// prevent repeated flow trigger
+const flowLock = new Set();
 
 // ========= DELAY =========
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
-
 
 // ========= GREETING =========
 function getGreeting() {
@@ -27,7 +28,6 @@ function getGreeting() {
   if (h < 17) return "Good Afternoon";
   return "Good Evening";
 }
-
 
 // ========= VERIFY =========
 app.get("/webhook", (req, res) => {
@@ -40,43 +40,53 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
-
 // ========= WEBHOOK =========
 app.post("/webhook", async (req, res) => {
   try {
-
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
 
-    // ❌ Ignore delivery/status updates (MAIN FIX)
+    // ❌ ignore delivery/status
     if (change.statuses) return res.sendStatus(200);
 
     const msg = change.messages?.[0];
-    if (!msg) return res.sendStatus(200);
-
-    const id = msg.id;
-
-    // ❌ Prevent duplicate execution
-    if (processed.has(id)) return res.sendStatus(200);
-    processed.add(id);
+    if (!msg || !msg.from) return res.sendStatus(200);
 
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
+    // ❌ ignore FLOW responses completely (MAIN FIX)
+    if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
+      console.log("Flow submit ignored");
+      return res.sendStatus(200);
+    }
+
+    // ❌ allow only TEXT or BUTTON clicks
+    if (
+      msg.type !== "text" &&
+      !(msg.type === "interactive" && msg.interactive?.button_reply)
+    ) {
+      return res.sendStatus(200);
+    }
+
+    const id = msg.id;
+
+    // ❌ prevent duplicate execution
+    if (processed.has(id)) return res.sendStatus(200);
+    processed.add(id);
+    if (processed.size > 1000) processed.clear();
 
     // ========= TEXT =========
     if (msg.type === "text") {
-
       const text = msg.text.body.toLowerCase().trim();
 
       if (text === "hi" || text === "hello") {
 
-        // LOGO
         await sendImage(pid, from, LOGO);
         await delay(1500);
 
-        // GREETING
         const g = getGreeting();
+
         await sendText(
           pid,
           from,
@@ -85,45 +95,75 @@ app.post("/webhook", async (req, res) => {
 
         await delay(1000);
 
-        // MAIN MENU
         await menuMain(pid, from);
         await delay(1000);
 
-        // QUICK MENU
         await menuQuick(pid, from);
       }
 
       return res.sendStatus(200);
     }
 
-
     // ========= BUTTON =========
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
 
-      const id = msg.interactive.button_reply.id;
+      const btnId = msg.interactive.button_reply.id;
 
-      if (id === "MAIN") return menuMain(pid, from);
-
-      if (id === "LEAVE") return menuLeave(pid, from);
-
-      if (id === "CLAIM") return menuClaim(pid, from);
-
-      if (id === "PAY") return menuPay(pid, from);
-
-      if (id === "BACK") return menuMain(pid, from);
-
-      if (id === "POL")
-        return sendText(pid, from, "📘 Policies will be shared soon");
-
-      if (id === "HR")
-        return sendText(pid, from, "👨‍💼 Contact HR: hr@company.com");
-
-      // ✅ FLOW TRIGGER
-      if (id === "APPLY") {
-        return sendFlow(pid, from);
+      if (btnId === "MAIN") {
+        await menuMain(pid, from);
+        return res.sendStatus(200);
       }
 
-      if (id === "SUBMIT_CLAIM") return claimLink(pid, from);
+      if (btnId === "LEAVE") {
+        await menuLeave(pid, from);
+        return res.sendStatus(200);
+      }
+
+      if (btnId === "CLAIM") {
+        await menuClaim(pid, from);
+        return res.sendStatus(200);
+      }
+
+      if (btnId === "PAY") {
+        await menuPay(pid, from);
+        return res.sendStatus(200);
+      }
+
+      if (btnId === "BACK") {
+        await menuMain(pid, from);
+        return res.sendStatus(200);
+      }
+
+      if (btnId === "POL") {
+        await sendText(pid, from, "📘 Policies will be shared soon");
+        return res.sendStatus(200);
+      }
+
+      if (btnId === "HR") {
+        await sendText(pid, from, "👨‍💼 Contact HR: hr@company.com");
+        return res.sendStatus(200);
+      }
+
+      // ✅ FLOW TRIGGER (LOCK FIX)
+      if (btnId === "APPLY") {
+
+        if (flowLock.has(from)) {
+          return res.sendStatus(200);
+        }
+
+        flowLock.add(from);
+
+        await sendFlow(pid, from);
+
+        setTimeout(() => flowLock.delete(from), 10000);
+
+        return res.sendStatus(200);
+      }
+
+      if (btnId === "SUBMIT_CLAIM") {
+        await claimLink(pid, from);
+        return res.sendStatus(200);
+      }
     }
 
     return res.sendStatus(200);
@@ -166,7 +206,6 @@ async function sendFlow(pid, to) {
   );
 }
 
-
 // ========= SEND =========
 async function sendText(pid, to, body) {
   await axios.post(
@@ -197,7 +236,6 @@ async function sendImage(pid, to, url) {
   );
 }
 
-
 // ========= BUTTON =========
 function btn(id, title) {
   return { type: "reply", reply: { id, title } };
@@ -222,9 +260,7 @@ async function sendButtons(pid, to, text, buttons) {
   );
 }
 
-
 // ========= MENUS =========
-
 async function menuMain(pid, to) {
   return sendButtons(pid, to, "📋 *Main Menu*", [
     btn("LEAVE", "📅 Leave"),
@@ -268,6 +304,5 @@ async function menuPay(pid, to) {
     btn("BACK", "Back")
   ]);
 }
-
 
 app.listen(3000, () => console.log("HR BOT READY"));
