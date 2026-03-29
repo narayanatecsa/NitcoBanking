@@ -12,18 +12,36 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
 
-// 🔥 PRODUCTION FIXES
-const processed = new Map();   // message dedupe with time
-const flowLock = new Map();    // prevent repeat flow trigger
+// 🔥 MASTER PROTECTION SYSTEM
+const userState = new Map();   // action tracking
+const processed = new Map();   // message dedupe
 
+// ========= HELPERS =========
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-// ========= GREETING =========
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good Morning";
   if (h < 17) return "Good Afternoon";
   return "Good Evening";
+}
+
+// ✅ ACTION BLOCKER (MAIN FIX)
+function blockUserAction(user, action, time = 300000) {
+  const key = user + "_" + action;
+  const now = Date.now();
+
+  if (userState.has(key)) {
+    const last = userState.get(key);
+
+    if (now - last < time) {
+      console.log("Blocked:", action);
+      return true;
+    }
+  }
+
+  userState.set(key, now);
+  return false;
 }
 
 // ========= VERIFY =========
@@ -43,7 +61,7 @@ app.post("/webhook", async (req, res) => {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
 
-    // ignore delivery updates
+    // ignore delivery events
     if (change.statuses) return res.sendStatus(200);
 
     const msg = change.messages?.[0];
@@ -53,16 +71,28 @@ app.post("/webhook", async (req, res) => {
     const pid = change.metadata.phone_number_id;
     const now = Date.now();
 
-    // ========= FLOW RESPONSE =========
+    // ========= HARD DUPLICATE BLOCK =========
+    if (processed.has(msg.id)) {
+      const last = processed.get(msg.id);
+      if (now - last < 600000) { // 10 min
+        console.log("Duplicate blocked");
+        return res.sendStatus(200);
+      }
+    }
+    processed.set(msg.id, now);
+
+    // ========= FLOW SUBMIT =========
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
-      console.log("Flow submitted");
+
+      if (blockUserAction(from, "FLOW_SUBMIT", 300000)) {
+        return res.sendStatus(200);
+      }
 
       await sendText(pid, from, "✅ Leave Applied Successfully");
-
       return res.sendStatus(200);
     }
 
-    // ========= FILTER ONLY USER ACTION =========
+    // ========= STRICT FILTER =========
     if (
       msg.type !== "text" &&
       !(msg.type === "interactive" && msg.interactive?.button_reply)
@@ -70,29 +100,15 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ========= DUPLICATE BLOCK (5 MIN TTL) =========
-    if (processed.has(msg.id)) {
-      const old = processed.get(msg.id);
-      if (now - old < 300000) {
-        console.log("Duplicate webhook blocked");
-        return res.sendStatus(200);
-      }
-    }
-
-    processed.set(msg.id, now);
-
-    // cleanup old cache
-    if (processed.size > 1000) {
-      for (let [key, time] of processed) {
-        if (now - time > 300000) processed.delete(key);
-      }
-    }
-
     // ========= TEXT =========
     if (msg.type === "text") {
       const text = msg.text.body.toLowerCase().trim();
 
       if (text === "hi" || text === "hello") {
+
+        if (blockUserAction(from, "GREETING", 60000)) {
+          return res.sendStatus(200);
+        }
 
         await sendImage(pid, from, LOGO);
         await delay(1000);
@@ -121,11 +137,13 @@ app.post("/webhook", async (req, res) => {
       const btnId = msg.interactive.button_reply.id;
 
       if (btnId === "MAIN") {
+        if (blockUserAction(from, "MAIN", 60000)) return res.sendStatus(200);
         await menuMain(pid, from);
         return res.sendStatus(200);
       }
 
       if (btnId === "LEAVE") {
+        if (blockUserAction(from, "LEAVE", 60000)) return res.sendStatus(200);
         await menuLeave(pid, from);
         return res.sendStatus(200);
       }
@@ -158,18 +176,11 @@ app.post("/webhook", async (req, res) => {
       // ========= APPLY FLOW =========
       if (btnId === "APPLY") {
 
-        if (flowLock.has(from)) {
-          const last = flowLock.get(from);
-          if (now - last < 60000) {
-            console.log("Blocked duplicate flow");
-            return res.sendStatus(200);
-          }
+        if (blockUserAction(from, "APPLY", 300000)) {
+          return res.sendStatus(200);
         }
 
-        flowLock.set(from, now);
-
         await sendFlow(pid, from);
-
         return res.sendStatus(200);
       }
 
@@ -300,11 +311,7 @@ async function menuClaim(pid, to) {
 }
 
 async function claimLink(pid, to) {
-  await sendText(
-    pid,
-    to,
-    "Submit claim:\nhttps://application.hrplace.com.my/claims/"
-  );
+  await sendText(pid, to, "Submit claim:\nhttps://application.hrplace.com.my/claims/");
 }
 
 async function menuPay(pid, to) {
