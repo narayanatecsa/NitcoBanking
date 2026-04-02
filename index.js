@@ -11,64 +11,51 @@ const VERIFY = process.env.MYTOKEN;
 const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
-
-// 🔥 GOOGLE SHEET API URL (App Script Web App URL)
 const SHEET_API = "YOUR_GOOGLE_SCRIPT_WEBAPP_URL?sheet=Emp_Details";
 
-// 🔥 CORE PROTECTION
 const userState = new Map();
 
-// ========= HELPERS =========
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-// ✅ Malaysia Greeting
+// ✅ Malaysia Time Greeting
 function getGreeting() {
   const malaysiaTime = new Date().toLocaleString("en-US", {
     timeZone: "Asia/Kuala_Lumpur"
   });
-
   const h = new Date(malaysiaTime).getHours();
-
   if (h < 12) return "Good Morning";
   if (h < 17) return "Good Afternoon";
   return "Good Evening";
 }
 
-// ✅ Fetch Name from Google Sheet via App Script
+// ✅ Get Name from Sheet
 async function getUserName(phone) {
   try {
     const res = await axios.get(SHEET_API);
     const users = res.data;
 
-    // ✅ exact match (your sheet already has 91 prefix)
     const user = users.find(u =>
       String(u.Mobile).trim() === String(phone).trim()
     );
 
-    // ✅ also check Active status (recommended)
     if (user && user.Status === "Active") {
       return user.Name;
     }
 
     return null;
-
   } catch (err) {
-    console.log("Sheet Fetch Error:", err.message);
+    console.log("Sheet Error:", err.message);
     return null;
   }
 }
-// ✅ BLOCK USER ACTION
+
+// ✅ Anti Repeat
 function blockUser(user, action, time = 300000) {
   const key = user + "_" + action;
   const now = Date.now();
 
   if (userState.has(key)) {
-    const last = userState.get(key);
-
-    if (now - last < time) {
-      console.log("Blocked:", action);
-      return true;
-    }
+    if (now - userState.get(key) < time) return true;
   }
 
   userState.set(key, now);
@@ -102,31 +89,13 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
-    // 🔴 Ignore old retry messages
     const msgTime = parseInt(msg.timestamp) * 1000;
-    const now = Date.now();
+    if (Date.now() - msgTime > 60000) return res.sendStatus(200);
 
-    if (now - msgTime > 60000) {
-      console.log("Old message ignored");
-      return res.sendStatus(200);
-    }
-
-    // ========= FLOW SUBMIT =========
+    // ========= FLOW =========
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
-
-      if (blockUser(from, "FLOW_SUBMIT", 300000)) {
-        return res.sendStatus(200);
-      }
-
+      if (blockUser(from, "FLOW_SUBMIT", 300000)) return res.sendStatus(200);
       await sendText(pid, from, "Leave Applied Successfully");
-      return res.sendStatus(200);
-    }
-
-    // ========= FILTER =========
-    if (
-      msg.type !== "text" &&
-      !(msg.type === "interactive" && msg.interactive?.button_reply)
-    ) {
       return res.sendStatus(200);
     }
 
@@ -143,68 +112,49 @@ app.post("/webhook", async (req, res) => {
         await sendImage(pid, from, LOGO);
         await delay(1000);
 
-        // 🔥 Get greeting + name
-        
-       const g = getGreeting();
-const name = await getUserName(from);
+        const g = getGreeting();
+        const name = await getUserName(from);
 
-// ❌ STOP if not registered
-if (!name) {
-  await sendText(
-    pid,
-    from,
-    "❌ You are not registered. Please contact HR."
-  );
-  return res.sendStatus(200);
-}
+        // ❌ Not registered
+        if (!name) {
+          await sendText(
+            pid,
+            from,
+            "❌ You are not registered. Please contact HR."
+          );
+          return res.sendStatus(200);
+        }
 
-// ✅ ONLY registered users continue
-await sendText(
-  pid,
-  from,
-  `*${g} ${name}* 👋\n\nSimple select from the options below`
-);
+        // ✅ Registered
+        await sendText(
+          pid,
+          from,
+          `*${g} ${name}* 👋\n\nSimple select from the options below`
+        );
 
-await delay(800);
-await menuMain(pid, from);
+        await delay(800);
+        await menuMain(pid, from);
 
-await delay(800);
-await menuQuick(pid, from);
-        
+        await delay(800);
+        await menuQuick(pid, from);
+
+        return res.sendStatus(200);
+      }
+    }
+
     // ========= BUTTON =========
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
 
       const btnId = msg.interactive.button_reply.id;
 
-      if (btnId === "MAIN") {
-        if (blockUser(from, "MAIN", 60000)) return res.sendStatus(200);
-        await menuMain(pid, from);
-        return res.sendStatus(200);
-      }
-
-      if (btnId === "LEAVE") {
-        if (blockUser(from, "LEAVE", 60000)) return res.sendStatus(200);
-        await menuLeave(pid, from);
-        return res.sendStatus(200);
-      }
-
-      if (btnId === "CLAIM") {
-        await menuClaim(pid, from);
-        return res.sendStatus(200);
-      }
-
-      if (btnId === "PAY") {
-        await menuPay(pid, from);
-        return res.sendStatus(200);
-      }
-
-      if (btnId === "BACK") {
-        await menuMain(pid, from);
-        return res.sendStatus(200);
-      }
+      if (btnId === "MAIN") return menuMain(pid, from).then(()=>res.sendStatus(200));
+      if (btnId === "LEAVE") return menuLeave(pid, from).then(()=>res.sendStatus(200));
+      if (btnId === "CLAIM") return menuClaim(pid, from).then(()=>res.sendStatus(200));
+      if (btnId === "PAY") return menuPay(pid, from).then(()=>res.sendStatus(200));
+      if (btnId === "BACK") return menuMain(pid, from).then(()=>res.sendStatus(200));
 
       if (btnId === "POL") {
-        await sendText(pid, from, "📘 Policies will be shared soon");
+        await sendText(pid, from, "📘 Policies coming soon");
         return res.sendStatus(200);
       }
 
@@ -214,17 +164,12 @@ await menuQuick(pid, from);
       }
 
       if (btnId === "APPLY") {
-
-        if (blockUser(from, "APPLY", 300000)) {
-          return res.sendStatus(200);
-        }
-
         await sendFlow(pid, from);
         return res.sendStatus(200);
       }
 
       if (btnId === "SUBMIT_CLAIM") {
-        await claimLink(pid, from);
+        await sendText(pid, from, "Submit claim:\nhttps://www.hrplace.com.my/claims/");
         return res.sendStatus(200);
       }
     }
@@ -232,66 +177,54 @@ await menuQuick(pid, from);
     return res.sendStatus(200);
 
   } catch (e) {
-    console.log(e);
+    console.log("ERROR:", e);
     return res.sendStatus(200);
   }
 });
 
-// ========= FLOW =========
-async function sendFlow(pid, to) {
-  await axios.post(
-    `https://graph.facebook.com/v23.0/${pid}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to,
-      type: "interactive",
-      interactive: {
-        type: "flow",
-        body: { text: "📄 Apply Leave Form" },
-        action: {
-          name: "flow",
-          parameters: {
-            flow_message_version: "3",
-            flow_id: FLOW_ID,
-            flow_cta: "Apply Now"
-          }
-        }
-      }
-    },
-    {
-      headers: { Authorization: `Bearer ${TOKEN}` }
-    }
-  );
-}
-
 // ========= SEND =========
 async function sendText(pid, to, body) {
-  await axios.post(
-    `https://graph.facebook.com/v23.0/${pid}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to,
-      text: { body }
-    },
-    {
-      headers: { Authorization: `Bearer ${TOKEN}` }
-    }
-  );
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    text: { body }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
 }
 
 async function sendImage(pid, to, url) {
-  await axios.post(
-    `https://graph.facebook.com/v23.0/${pid}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to,
-      type: "image",
-      image: { link: url }
-    },
-    {
-      headers: { Authorization: `Bearer ${TOKEN}` }
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "image",
+    image: { link: url }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
+// ========= FLOW =========
+async function sendFlow(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      body: { text: "📄 Apply Leave Form" },
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_id: FLOW_ID,
+          flow_cta: "Apply Now"
+        }
+      }
     }
-  );
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
 }
 
 // ========= BUTTON =========
@@ -300,63 +233,55 @@ function btn(id, title) {
 }
 
 async function sendButtons(pid, to, text, buttons) {
-  await axios.post(
-    `https://graph.facebook.com/v23.0/${pid}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to,
-      type: "interactive",
-      interactive: {
-        type: "button",
-        body: { text },
-        action: { buttons }
-      }
-    },
-    {
-      headers: { Authorization: `Bearer ${TOKEN}` }
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text },
+      action: { buttons }
     }
-  );
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
 }
 
 // ========= MENUS =========
 async function menuMain(pid, to) {
-  return sendButtons(pid, to, " *Main Menu*", [
-    btn("LEAVE", " Leave"),
-    btn("CLAIM", " Claims"),
-    btn("PAY", " Payroll")
+  return sendButtons(pid, to, "Main Menu", [
+    btn("LEAVE", "Leave"),
+    btn("CLAIM", "Claims"),
+    btn("PAY", "Payroll")
   ]);
 }
 
 async function menuQuick(pid, to) {
-  return sendButtons(pid, to, " Quick Services", [
-    btn("POL", " Policies"),
-    btn("HR", " Contact HR"),
-    btn("MAIN", " Main Menu")
+  return sendButtons(pid, to, "Quick Services", [
+    btn("POL", "Policies"),
+    btn("HR", "Contact HR"),
+    btn("MAIN", "Main Menu")
   ]);
 }
 
 async function menuLeave(pid, to) {
-  return sendButtons(pid, to, " Leave Menu", [
+  return sendButtons(pid, to, "Leave Menu", [
     btn("APPLY", "Apply Leave"),
     btn("BACK", "Back")
   ]);
 }
 
 async function menuClaim(pid, to) {
-  return sendButtons(pid, to, " Claims", [
+  return sendButtons(pid, to, "Claims", [
     btn("SUBMIT_CLAIM", "Submit"),
     btn("BACK", "Back")
   ]);
 }
 
-async function claimLink(pid, to) {
-  await sendText(pid, to, "Submit claim:\nhttps://www.hrplace.com.my/claims/");
-}
-
 async function menuPay(pid, to) {
-  return sendButtons(pid, to, " Payroll", [
+  return sendButtons(pid, to, "Payroll", [
     btn("BACK", "Back")
   ]);
 }
 
-app.listen(3000, () => console.log("HR BOT READY"));
+app.listen(3000, () => console.log("✅ HR BOT READY"));
