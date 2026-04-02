@@ -40,15 +40,17 @@ async function getUserName(phone) {
     const res = await axios.get(SHEET_API);
     const users = res.data;
 
-    // ✅ take last 10 digits from WhatsApp number
-    const cleanPhone = phone.slice(-10);
+    // ✅ exact match (your sheet already has 91 prefix)
+    const user = users.find(u =>
+      String(u.Mobile).trim() === String(phone).trim()
+    );
 
-    const user = users.find(u => {
-      const sheetPhone = String(u.Mobile).slice(-10);
-      return sheetPhone === cleanPhone;
-    });
+    // ✅ also check Active status (recommended)
+    if (user && user.Status === "Active") {
+      return user.Name;
+    }
 
-    return user ? user.Name : null;
+    return null;
 
   } catch (err) {
     console.log("Sheet Fetch Error:", err.message);
@@ -149,7 +151,7 @@ app.post("/webhook", async (req, res) => {
         await sendText(
           pid,
           from,
-          `*${g} ${userName}* 👋\n\nSimple select from the options below`
+          `*${g} ${userName}* \n\nSimple select from the options below`
         );
 
         await delay(800);
