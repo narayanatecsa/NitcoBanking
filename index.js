@@ -10,7 +10,7 @@ const TOKEN = process.env.TOKEN;
 const VERIFY = process.env.MYTOKEN;
 const FLOW_ID = process.env.FLOW_ID;
 
-const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
+const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
 
 const userState = new Map();
