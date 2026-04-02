@@ -137,7 +137,7 @@ app.post("/webhook", async (req, res) => {
         await sendText(
           pid,
           from,
-          `*${g} ${name}* 👋\n\nSimple select from the options below`
+          `*${g} ${name}*\n\nSimple select from the options below`
         );
 
         await delay(800);
