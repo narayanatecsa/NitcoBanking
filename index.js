@@ -87,7 +87,7 @@ app.post("/webhook", async (req, res) => {
         return res.sendStatus(200);
       }
 
-      await sendText(pid, from, "✅ Leave Applied Successfully");
+      await sendText(pid, from, "Leave Applied Successfully");
       return res.sendStatus(200);
     }
 
@@ -168,7 +168,7 @@ app.post("/webhook", async (req, res) => {
       }
 
       if (btnId === "HR") {
-        await sendText(pid, from, "👨‍💼 Contact HR: hr@company.com");
+        await sendText(pid, from, " Contact HR: hr@company.com");
         return res.sendStatus(200);
       }
 
@@ -280,41 +280,41 @@ async function sendButtons(pid, to, text, buttons) {
 
 // ========= MENUS =========
 async function menuMain(pid, to) {
-  return sendButtons(pid, to, "📋 *Main Menu*", [
-    btn("LEAVE", "📅 Leave"),
-    btn("CLAIM", "💰 Claims"),
-    btn("PAY", "🏦 Payroll")
+  return sendButtons(pid, to, " *Main Menu*", [
+    btn("LEAVE", " Leave"),
+    btn("CLAIM", " Claims"),
+    btn("PAY", " Payroll")
   ]);
 }
 
 async function menuQuick(pid, to) {
-  return sendButtons(pid, to, "⚡ Quick Services", [
-    btn("POL", "📘 Policies"),
-    btn("HR", "👨‍💼 Contact HR"),
-    btn("MAIN", "🏠 Main Menu")
+  return sendButtons(pid, to, " Quick Services", [
+    btn("POL", " Policies"),
+    btn("HR", " Contact HR"),
+    btn("MAIN", " Main Menu")
   ]);
 }
 
 async function menuLeave(pid, to) {
-  return sendButtons(pid, to, "📅 Leave Menu", [
+  return sendButtons(pid, to, " Leave Menu", [
     btn("APPLY", "Apply Leave"),
     btn("BACK", "Back")
   ]);
 }
 
 async function menuClaim(pid, to) {
-  return sendButtons(pid, to, "💰 Claims", [
+  return sendButtons(pid, to, " Claims", [
     btn("SUBMIT_CLAIM", "Submit"),
     btn("BACK", "Back")
   ]);
 }
 
 async function claimLink(pid, to) {
-  await sendText(pid, to, "Submit claim:\nhttps://application.hrplace.com.my/claims/");
+  await sendText(pid, to, "Submit claim:\nhttps://www.hrplace.com.my/claims/");
 }
 
 async function menuPay(pid, to) {
-  return sendButtons(pid, to, "🏦 Payroll", [
+  return sendButtons(pid, to, " Payroll", [
     btn("BACK", "Back")
   ]);
 }
