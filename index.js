@@ -144,26 +144,33 @@ app.post("/webhook", async (req, res) => {
         await delay(1000);
 
         // 🔥 Get greeting + name
-        const g = getGreeting();
-        const name = await getUserName(from);
-        const userName = name ? name : "User";
+        
+       const g = getGreeting();
+const name = await getUserName(from);
 
-        await sendText(
-          pid,
-          from,
-          `*${g} ${userName}* \n\nSimple select from the options below`
-        );
+// ❌ STOP if not registered
+if (!name) {
+  await sendText(
+    pid,
+    from,
+    "❌ You are not registered. Please contact HR."
+  );
+  return res.sendStatus(200);
+}
 
-        await delay(800);
-        await menuMain(pid, from);
+// ✅ ONLY registered users continue
+await sendText(
+  pid,
+  from,
+  `*${g} ${name}* 👋\n\nSimple select from the options below`
+);
 
-        await delay(800);
-        await menuQuick(pid, from);
-      }
+await delay(800);
+await menuMain(pid, from);
 
-      return res.sendStatus(200);
-    }
-
+await delay(800);
+await menuQuick(pid, from);
+        
     // ========= BUTTON =========
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
 
