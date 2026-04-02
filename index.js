@@ -40,11 +40,13 @@ async function getUserName(phone) {
     const res = await axios.get(SHEET_API);
     const users = res.data;
 
-    const cleanPhone = phone.replace(/^91/, ""); // adjust if needed
+    // ✅ take last 10 digits from WhatsApp number
+    const cleanPhone = phone.slice(-10);
 
-    const user = users.find(u =>
-      String(u.Mobile).endsWith(cleanPhone)
-    );
+    const user = users.find(u => {
+      const sheetPhone = String(u.Mobile).slice(-10);
+      return sheetPhone === cleanPhone;
+    });
 
     return user ? user.Name : null;
 
@@ -53,7 +55,6 @@ async function getUserName(phone) {
     return null;
   }
 }
-
 // ✅ BLOCK USER ACTION
 function blockUser(user, action, time = 300000) {
   const key = user + "_" + action;
