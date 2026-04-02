@@ -11,7 +11,7 @@ const VERIFY = process.env.MYTOKEN;
 const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
-const SHEET_API = "YOUR_GOOGLE_SCRIPT_WEBAPP_URL?sheet=Emp_Details";
+const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
 
 const userState = new Map();
 
