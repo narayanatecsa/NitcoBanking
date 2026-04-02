@@ -34,21 +34,29 @@ async function getUserName(phone) {
     const res = await axios.get(SHEET_API);
     const users = res.data;
 
-    const user = users.find(u =>
-      String(u.Mobile).trim() === String(phone).trim()
-    );
+    // ✅ normalize WhatsApp number
+    const cleanIncoming = phone.replace(/\D/g, "");
+
+    console.log("Incoming:", cleanIncoming);
+
+    const user = users.find(u => {
+      const sheetPhone = String(u.Mobile).replace(/\D/g, "");
+      return sheetPhone === cleanIncoming;
+    });
+
+    console.log("Matched User:", user);
 
     if (user && user.Status === "Active") {
       return user.Name;
     }
 
     return null;
+
   } catch (err) {
     console.log("Sheet Error:", err.message);
     return null;
   }
 }
-
 // ✅ Anti Repeat
 function blockUser(user, action, time = 300000) {
   const key = user + "_" + action;
