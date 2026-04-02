@@ -12,20 +12,49 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/HRplace.jpeg";
 
+// 🔥 GOOGLE SHEET API URL (App Script Web App URL)
+const SHEET_API = "YOUR_GOOGLE_SCRIPT_WEBAPP_URL?sheet=Emp_Details";
+
 // 🔥 CORE PROTECTION
 const userState = new Map();
 
 // ========= HELPERS =========
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
+// ✅ Malaysia Greeting
 function getGreeting() {
-  const h = new Date().getHours();
+  const malaysiaTime = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Kuala_Lumpur"
+  });
+
+  const h = new Date(malaysiaTime).getHours();
+
   if (h < 12) return "Good Morning";
   if (h < 17) return "Good Afternoon";
   return "Good Evening";
 }
 
-// ✅ BLOCK USER ACTION (ANTI-REPEAT)
+// ✅ Fetch Name from Google Sheet via App Script
+async function getUserName(phone) {
+  try {
+    const res = await axios.get(SHEET_API);
+    const users = res.data;
+
+    const cleanPhone = phone.replace(/^91/, ""); // adjust if needed
+
+    const user = users.find(u =>
+      String(u.Mobile).endsWith(cleanPhone)
+    );
+
+    return user ? user.Name : null;
+
+  } catch (err) {
+    console.log("Sheet Fetch Error:", err.message);
+    return null;
+  }
+}
+
+// ✅ BLOCK USER ACTION
 function blockUser(user, action, time = 300000) {
   const key = user + "_" + action;
   const now = Date.now();
@@ -60,7 +89,6 @@ app.post("/webhook", async (req, res) => {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
 
-    // ignore delivery updates
     if (change.statuses) return res.sendStatus(200);
 
     const msg = change.messages?.[0];
@@ -71,11 +99,11 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
-    // 🔴 FINAL FIX: IGNORE OLD RETRY MESSAGES
+    // 🔴 Ignore old retry messages
     const msgTime = parseInt(msg.timestamp) * 1000;
     const now = Date.now();
 
-    if (now - msgTime > 60000) {   // 60 sec
+    if (now - msgTime > 60000) {
       console.log("Old message ignored");
       return res.sendStatus(200);
     }
@@ -91,7 +119,7 @@ app.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ========= STRICT FILTER =========
+    // ========= FILTER =========
     if (
       msg.type !== "text" &&
       !(msg.type === "interactive" && msg.interactive?.button_reply)
@@ -112,12 +140,15 @@ app.post("/webhook", async (req, res) => {
         await sendImage(pid, from, LOGO);
         await delay(1000);
 
+        // 🔥 Get greeting + name
         const g = getGreeting();
+        const name = await getUserName(from);
+        const userName = name ? name : "User";
 
         await sendText(
           pid,
           from,
-          `*${g}*\n\nWelcome to *HR PLACE*\nPlease select option`
+          `*${g} ${userName}* 👋\n\nSimple select from the options below`
         );
 
         await delay(800);
@@ -168,11 +199,10 @@ app.post("/webhook", async (req, res) => {
       }
 
       if (btnId === "HR") {
-        await sendText(pid, from, " Contact HR: hr@company.com");
+        await sendText(pid, from, "Contact HR: hr@company.com");
         return res.sendStatus(200);
       }
 
-      // ========= APPLY FLOW =========
       if (btnId === "APPLY") {
 
         if (blockUser(from, "APPLY", 300000)) {
