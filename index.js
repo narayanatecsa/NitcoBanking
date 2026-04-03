@@ -13,8 +13,9 @@ const FLOW_ID = process.env.FLOW_ID;
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
 const userState = new Map();
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-// ===== Anti Repeat =====
+// ===== ANTI REPEAT =====
 function blockUser(user, action, time = 300000) {
   const key = user + "_" + action;
   const now = Date.now();
@@ -62,29 +63,17 @@ app.post("/webhook", async (req, res) => {
       const text = msg.text.body.toLowerCase().trim();
 
       if (text === "hi" || text === "hello") {
+
         if (blockUser(from, "GREETING", 60000)) {
           return res.sendStatus(200);
         }
 
         await sendImage(pid, from, LOGO);
+        await delay(1000);
+
+        await menuFirst(pid, from);
         await delay(800);
-
-        await sendText(pid, from,
-`MAIN MENU
-
-Apply
-› Leave
-› Claim
-
-View
-› Payslip
-› Time Sheet
-
-Type your choice or use buttons below`
-        );
-
-        await delay(500);
-        await menuMain(pid, from);
+        await menuSecond(pid, from);
 
         return res.sendStatus(200);
       }
@@ -94,22 +83,36 @@ Type your choice or use buttons below`
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
+      // FIRST MENU
       if (id === "APPLY") return menuApply(pid, from).then(()=>res.sendStatus(200));
       if (id === "VIEW") return menuView(pid, from).then(()=>res.sendStatus(200));
 
+      // SECOND MENU
+      if (id === "PROFILE") return menuProfile(pid, from).then(()=>res.sendStatus(200));
+      if (id === "REQUEST") return menuRequest(pid, from).then(()=>res.sendStatus(200));
+
+      // BACK
+      if (id === "BACK1") return menuFirst(pid, from).then(()=>res.sendStatus(200));
+      if (id === "BACK2") return menuSecond(pid, from).then(()=>res.sendStatus(200));
+
+      // ACTIONS
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
       if (id === "CLAIM") return sendText(pid, from, "Claim module").then(()=>res.sendStatus(200));
 
       if (id === "PAYSLIP") return sendText(pid, from, "Payslip module").then(()=>res.sendStatus(200));
       if (id === "TIMESHEET") return sendText(pid, from, "Timesheet module").then(()=>res.sendStatus(200));
 
-      if (id === "BACK") return menuMain(pid, from).then(()=>res.sendStatus(200));
+      if (id === "MANAGER") return sendText(pid, from, "Manager details").then(()=>res.sendStatus(200));
+      if (id === "REPORTEE") return sendText(pid, from, "Reportee details").then(()=>res.sendStatus(200));
+
+      if (id === "INT") return sendText(pid, from, "Internal ticket").then(()=>res.sendStatus(200));
+      if (id === "EXT") return sendText(pid, from, "External ticket").then(()=>res.sendStatus(200));
     }
 
     return res.sendStatus(200);
 
   } catch (e) {
-    console.log(e);
+    console.log("ERROR:", e);
     return res.sendStatus(200);
   }
 });
@@ -136,8 +139,6 @@ async function sendImage(pid, to, url) {
   });
 }
 
-const delay = (ms) => new Promise(r => setTimeout(r, ms));
-
 // ===== FLOW =====
 async function sendFlow(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
@@ -161,7 +162,7 @@ async function sendFlow(pid, to) {
   });
 }
 
-// ===== BUTTON HELPER =====
+// ===== BUTTON =====
 function btn(id, title) {
   return { type: "reply", reply: { id, title } };
 }
@@ -183,42 +184,114 @@ async function sendButtons(pid, to, text, buttons) {
 
 // ===== MENUS =====
 
-// MAIN (2 buttons)
-async function menuMain(pid, to) {
-  return sendButtons(pid, to, "Select Menu", [
+// FIRST MENU
+async function menuFirst(pid, to) {
+  await sendText(pid, to,
+`First Menu
+
+Apply
+ |_Leave (Whatsapp Flow Form)
+ |_Claim
+ |_Overtime
+ |_Replacement Leave
+
+View
+ |_My Calendar
+ |_Payslip
+ |_Time Sheet`
+  );
+
+  return sendButtons(pid, to, "Select Option", [
     btn("APPLY", "Apply"),
     btn("VIEW", "View")
   ]);
 }
 
-// APPLY SUBMENU (2 + BACK)
-async function menuApply(pid, to) {
-  return sendButtons(pid, to,
-`Apply
+// SECOND MENU
+async function menuSecond(pid, to) {
+  await sendText(pid, to,
+`Second Menu
 
-› Leave
-› Claim`,
-    [
-      btn("LEAVE", "Leave"),
-      btn("CLAIM", "Claim"),
-      btn("BACK", "Back")
-    ]
+Profile
+ |_My Reporting Manager
+ |_My Reportee
+
+Raise a Request
+ |_Internal Support Ticket
+ |_External Support Ticket`
   );
+
+  return sendButtons(pid, to, "Select Option", [
+    btn("PROFILE", "Profile"),
+    btn("REQUEST", "Raise Request")
+  ]);
 }
 
-// VIEW SUBMENU (2 + BACK)
+// APPLY
+async function menuApply(pid, to) {
+  await sendText(pid, to,
+`Apply
+
+ |_Leave (Whatsapp Flow Form)
+ |_Claim
+ |_Overtime
+ |_Replacement Leave`
+  );
+
+  return sendButtons(pid, to, "Choose", [
+    btn("LEAVE", "Leave"),
+    btn("CLAIM", "Claim"),
+    btn("BACK1", "Back")
+  ]);
+}
+
+// VIEW
 async function menuView(pid, to) {
-  return sendButtons(pid, to,
+  await sendText(pid, to,
 `View
 
-› Payslip
-› Time Sheet`,
-    [
-      btn("PAYSLIP", "Payslip"),
-      btn("TIMESHEET", "Time Sheet"),
-      btn("BACK", "Back")
-    ]
+ |_My Calendar
+ |_Payslip
+ |_Time Sheet`
   );
+
+  return sendButtons(pid, to, "Choose", [
+    btn("PAYSLIP", "Payslip"),
+    btn("TIMESHEET", "Time Sheet"),
+    btn("BACK1", "Back")
+  ]);
+}
+
+// PROFILE
+async function menuProfile(pid, to) {
+  await sendText(pid, to,
+`Profile
+
+ |_My Reporting Manager
+ |_My Reportee`
+  );
+
+  return sendButtons(pid, to, "Choose", [
+    btn("MANAGER", "Manager"),
+    btn("REPORTEE", "Reportee"),
+    btn("BACK2", "Back")
+  ]);
+}
+
+// REQUEST
+async function menuRequest(pid, to) {
+  await sendText(pid, to,
+`Raise a Request
+
+ |_Internal Support Ticket
+ |_External Support Ticket`
+  );
+
+  return sendButtons(pid, to, "Choose", [
+    btn("INT", "Internal"),
+    btn("EXT", "External"),
+    btn("BACK2", "Back")
+  ]);
 }
 
 app.listen(3000, () => console.log("HR BOT READY"));
