@@ -68,9 +68,26 @@ app.post("/webhook", async (req, res) => {
           return res.sendStatus(200);
         }
 
+        // STEP 1: LOGO
         await sendImage(pid, from, LOGO);
+
+        // STEP 2: DELAY
         await delay(1000);
 
+        // STEP 3: INSTRUCTIONS
+        await sendText(pid, from,
+`Welcome to HR Services
+
+Please select from the options below to continue:
+- Apply for leave, claims, or requests
+- View your payslip or timesheet
+- Access profile and support services`
+        );
+
+        // STEP 4: DELAY
+        await delay(1000);
+
+        // STEP 5: MENUS
         await menuFirst(pid, from);
         await delay(800);
         await menuSecond(pid, from);
@@ -180,27 +197,20 @@ async function sendButtons(pid, to, text, buttons) {
 
 // ===== MENUS =====
 
-// MENU (updated)
 async function menuFirst(pid, to) {
   await sendText(pid, to,
 `Menu
 
-`Apply
+Apply
+ |_Leave (Apply for leave)
+ |_Claim (Submit claims)
+ |_Overtime (Request overtime)
+ |_Replacement Leave
 
-Please select from the options below:
-
- |_Leave (Apply for leave using WhatsApp form)
- |_Claim (Submit or view your claims)
- |_Overtime (Apply for overtime request)
- |_Replacement Leave (Request replacement leave)`
-
-`View
-
-Please select from the options below:
-
- |_My Calendar (Check your schedule)
- |_Payslip (View salary details)
- |_Time Sheet (View working hours)`
+View
+ |_My Calendar
+ |_Payslip
+ |_Time Sheet`
   );
 
   return sendButtons(pid, to, "Select", [
@@ -209,20 +219,17 @@ Please select from the options below:
   ]);
 }
 
-// MORE OPTIONS (updated)
 async function menuSecond(pid, to) {
   await sendText(pid, to,
-
-More Options
-
-Please select from the options below:
+`More Options
 
 Profile Details
- |_View your Reporting Manager
- |_View your Reportees
+ |_View Reporting Manager
+ |_View Reportees
+
 Support Requests
- |_Create Internal Support Ticket
- |_Create External Support Ticket`
+ |_Internal Support Ticket
+ |_External Support Ticket`
   );
 
   return sendButtons(pid, to, "Select", [
@@ -231,67 +238,34 @@ Support Requests
   ]);
 }
 
-// APPLY
+// ===== SUB MENUS =====
+
 async function menuApply(pid, to) {
-  await sendText(pid, to,
-`Apply
-
- |_Leave (Whatsapp Flow Form)
- |_Claim
- |_Overtime
- |_Replacement Leave`
-  );
-
-  return sendButtons(pid, to, "Choose", [
+  return sendButtons(pid, to, "Apply Options", [
     btn("LEAVE", "Leave"),
     btn("CLAIM", "Claim"),
     btn("BACK1", "Back")
   ]);
 }
 
-// VIEW
 async function menuView(pid, to) {
-  await sendText(pid, to,
-`View
-
- |_My Calendar
- |_Payslip
- |_Time Sheet`
-  );
-
-  return sendButtons(pid, to, "Choose", [
+  return sendButtons(pid, to, "View Options", [
     btn("PAYSLIP", "Payslip"),
     btn("TIMESHEET", "Time Sheet"),
     btn("BACK1", "Back")
   ]);
 }
 
-// PROFILE
 async function menuProfile(pid, to) {
-  await sendText(pid, to,
-`Profile
-
- |_My Reporting Manager
- |_My Reportee`
-  );
-
-  return sendButtons(pid, to, "Choose", [
+  return sendButtons(pid, to, "Profile Options", [
     btn("MANAGER", "Manager"),
     btn("REPORTEE", "Reportee"),
     btn("BACK2", "Back")
   ]);
 }
 
-// REQUEST
 async function menuRequest(pid, to) {
-  await sendText(pid, to,
-`Raise a Request
-
- |_Internal Support Ticket
- |_External Support Ticket`
-  );
-
-  return sendButtons(pid, to, "Choose", [
+  return sendButtons(pid, to, "Request Options", [
     btn("INT", "Internal"),
     btn("EXT", "External"),
     btn("BACK2", "Back")
