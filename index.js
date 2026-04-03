@@ -12,16 +12,41 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
+// ✅ GOOGLE SHEET API
+const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
+
 const userState = new Map();
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+// ===== CHECK USER FROM SHEET =====
+async function getUser(phone) {
+  try {
+    const res = await axios.get(SHEET_API);
+    const users = res.data;
+
+    const clean = phone.replace(/\D/g, "");
+
+    const user = users.find(u =>
+      String(u.Mobile).replace(/\D/g, "") === clean
+    );
+
+    return user && user.Status === "Active" ? user : null;
+
+  } catch (err) {
+    console.log("Sheet error:", err.message);
+    return null;
+  }
+}
 
 // ===== ANTI REPEAT =====
 function blockUser(user, action, time = 300000) {
   const key = user + "_" + action;
   const now = Date.now();
+
   if (userState.has(key)) {
     if (now - userState.get(key) < time) return true;
   }
+
   userState.set(key, now);
   return false;
 }
@@ -68,26 +93,38 @@ app.post("/webhook", async (req, res) => {
           return res.sendStatus(200);
         }
 
-        // STEP 1: LOGO
+        // ✅ CHECK USER IN GOOGLE SHEET
+        const user = await getUser(from);
+
+        if (!user) {
+          await sendText(pid, from, "You are not registered. Please contact HR.");
+          return res.sendStatus(200);
+        }
+
+        // ===== FIRST TIME ONLY =====
+        const firstKey = from + "_FIRST";
+
+        // LOGO
         await sendImage(pid, from, LOGO);
-
-        // STEP 2: DELAY
         await delay(1000);
 
-        // STEP 3: INSTRUCTIONS
-        await sendText(pid, from,
-`Welcome to HR Services
+        if (!userState.has(firstKey)) {
+          userState.set(firstKey, true);
 
-Please select from the options below to continue:
-- Apply for leave, claims, or requests
-- View your payslip or timesheet
-- Access profile and support services`
-        );
+          // INSTRUCTIONS (ONLY ONCE)
+          await sendText(pid, from,
+`Welcome ${user.Name}
 
-        // STEP 4: DELAY
-        await delay(1000);
+Please select from the options below:
+- Apply for leave or claims
+- View payslip or timesheet
+- Access profile and support`
+          );
 
-        // STEP 5: MENUS
+          await delay(1000);
+        }
+
+        // MENUS
         await menuFirst(pid, from);
         await delay(800);
         await menuSecond(pid, from);
@@ -196,15 +233,14 @@ async function sendButtons(pid, to, text, buttons) {
 }
 
 // ===== MENUS =====
-
 async function menuFirst(pid, to) {
   await sendText(pid, to,
 `Menu
 
 Apply
- |_Leave (Apply for leave)
- |_Claim (Submit claims)
- |_Overtime (Request overtime)
+ |_Leave
+ |_Claim
+ |_Overtime
  |_Replacement Leave
 
 View
@@ -223,23 +259,22 @@ async function menuSecond(pid, to) {
   await sendText(pid, to,
 `More Options
 
-Profile Details
- |_View Reporting Manager
- |_View Reportees
+Profile
+ |_Reporting Manager
+ |_Reportees
 
-Support Requests
- |_Internal Support Ticket
- |_External Support Ticket`
+Support
+ |_Internal Ticket
+ |_External Ticket`
   );
 
   return sendButtons(pid, to, "Select", [
     btn("PROFILE", "Profile"),
-    btn("REQUEST", "Raise Request")
+    btn("REQUEST", "Request")
   ]);
 }
 
 // ===== SUB MENUS =====
-
 async function menuApply(pid, to) {
   return sendButtons(pid, to, "Apply Options", [
     btn("LEAVE", "Leave"),
