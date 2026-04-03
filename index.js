@@ -83,19 +83,15 @@ app.post("/webhook", async (req, res) => {
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
-      // FIRST MENU
       if (id === "APPLY") return menuApply(pid, from).then(()=>res.sendStatus(200));
       if (id === "VIEW") return menuView(pid, from).then(()=>res.sendStatus(200));
 
-      // SECOND MENU
       if (id === "PROFILE") return menuProfile(pid, from).then(()=>res.sendStatus(200));
       if (id === "REQUEST") return menuRequest(pid, from).then(()=>res.sendStatus(200));
 
-      // BACK
       if (id === "BACK1") return menuFirst(pid, from).then(()=>res.sendStatus(200));
       if (id === "BACK2") return menuSecond(pid, from).then(()=>res.sendStatus(200));
 
-      // ACTIONS
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
       if (id === "CLAIM") return sendText(pid, from, "Claim module").then(()=>res.sendStatus(200));
 
@@ -184,10 +180,10 @@ async function sendButtons(pid, to, text, buttons) {
 
 // ===== MENUS =====
 
-// FIRST MENU
+// MENU (updated)
 async function menuFirst(pid, to) {
   await sendText(pid, to,
-`First Menu
+`Menu
 
 Apply
  |_Leave (Whatsapp Flow Form)
@@ -201,16 +197,16 @@ View
  |_Time Sheet`
   );
 
-  return sendButtons(pid, to, "Select Option", [
+  return sendButtons(pid, to, "Select", [
     btn("APPLY", "Apply"),
     btn("VIEW", "View")
   ]);
 }
 
-// SECOND MENU
+// MORE OPTIONS (updated)
 async function menuSecond(pid, to) {
   await sendText(pid, to,
-`Second Menu
+`More Options
 
 Profile
  |_My Reporting Manager
@@ -221,7 +217,7 @@ Raise a Request
  |_External Support Ticket`
   );
 
-  return sendButtons(pid, to, "Select Option", [
+  return sendButtons(pid, to, "Select", [
     btn("PROFILE", "Profile"),
     btn("REQUEST", "Raise Request")
   ]);
