@@ -185,16 +185,22 @@ async function menuFirst(pid, to) {
   await sendText(pid, to,
 `Menu
 
-Apply
- |_Leave (Whatsapp Flow Form)
- |_Claim
- |_Overtime
- |_Replacement Leave
+`Apply
 
-View
- |_My Calendar
- |_Payslip
- |_Time Sheet`
+Please select from the options below:
+
+ |_Leave (Apply for leave using WhatsApp form)
+ |_Claim (Submit or view your claims)
+ |_Overtime (Apply for overtime request)
+ |_Replacement Leave (Request replacement leave)`
+
+`View
+
+Please select from the options below:
+
+ |_My Calendar (Check your schedule)
+ |_Payslip (View salary details)
+ |_Time Sheet (View working hours)`
   );
 
   return sendButtons(pid, to, "Select", [
@@ -206,15 +212,17 @@ View
 // MORE OPTIONS (updated)
 async function menuSecond(pid, to) {
   await sendText(pid, to,
-`More Options
 
-Profile
- |_My Reporting Manager
- |_My Reportee
+More Options
 
-Raise a Request
- |_Internal Support Ticket
- |_External Support Ticket`
+Please select from the options below:
+
+Profile Details
+ |_View your Reporting Manager
+ |_View your Reportees
+Support Requests
+ |_Create Internal Support Ticket
+ |_Create External Support Ticket`
   );
 
   return sendButtons(pid, to, "Select", [
