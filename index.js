@@ -117,19 +117,19 @@ Please choose a service below.`);
 
       if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
 
-      if (id === "CLAIM") return sendText(pid, from, "💰 Claims module").then(()=>res.sendStatus(200));
-      if (id === "PAYROLL") return sendText(pid, from, "🏦 Payroll module").then(()=>res.sendStatus(200));
+      if (id === "CLAIM") return sendText(pid, from, " Claims module").then(()=>res.sendStatus(200));
+      if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
 
-      if (id === "POLICY") return sendText(pid, from, "📄 Company policies").then(()=>res.sendStatus(200));
-      if (id === "CONTACT") return sendText(pid, from, "📞 HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
+      if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
+      if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
 
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
 
-      if (id === "BALANCE") return sendText(pid, from, "📊 Leave balance details").then(()=>res.sendStatus(200));
-      if (id === "EDIT") return sendText(pid, from, "✏️ Edit or cancel leave").then(()=>res.sendStatus(200));
+      if (id === "BALANCE") return sendText(pid, from, " Leave balance details").then(()=>res.sendStatus(200));
+      if (id === "EDIT") return sendText(pid, from, " Edit or cancel leave").then(()=>res.sendStatus(200));
 
-      if (id === "ATTENDANCE") return sendText(pid, from, "📅 Attendance details").then(()=>res.sendStatus(200));
-      if (id === "REGULARIZE") return sendText(pid, from, "🛠 Regularize attendance").then(()=>res.sendStatus(200));
+      if (id === "ATTENDANCE") return sendText(pid, from, " Attendance details").then(()=>res.sendStatus(200));
+      if (id === "REGULARIZE") return sendText(pid, from, " Regularize attendance").then(()=>res.sendStatus(200));
 
       if (id === "BACK_MAIN") {
         await menuFirst(pid, from);
@@ -214,7 +214,7 @@ async function sendButtons(pid, to, text, buttons) {
 // ===== MENUS =====
 async function menuFirst(pid, to) {
   return sendButtons(pid, to,
-`🏢 *Main Services*`,
+` *Main Services*`,
   [
     btn("LEAVE_MENU", "Leave & Attendance"),
     btn("CLAIM", "Claims"),
@@ -235,7 +235,7 @@ async function menuSecond(pid, to) {
 async function menuLeave(pid, to) {
 
   await sendButtons(pid, to,
-`📅 *Leave & Attendance*
+` *Leave & Attendance*
 
 Select an action:`,
   [
