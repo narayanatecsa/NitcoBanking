@@ -237,16 +237,7 @@ async function menuFirst(pid, to) {
   await sendText(pid, to,
 `Menu
 
-Apply
- |_Leave
- |_Claim
- |_Overtime
- |_Replacement Leave
 
-View
- |_My Calendar
- |_Payslip
- |_Time Sheet`
   );
 
   return sendButtons(pid, to, "Select", [
