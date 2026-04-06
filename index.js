@@ -98,9 +98,9 @@ app.post("/webhook", async (req, res) => {
           userState.set(firstKey, true);
 
           await sendText(pid, from,
-`Welcome ${user.Name}
+`Hello ${user.Name}
 
-Please choose a service below.`);
+Welcome to HRPlace 👋.How can I assist you today?`);
           await delay(800);
         }
 
@@ -213,7 +213,7 @@ async function sendButtons(pid, to, text, buttons) {
 // ===== MENUS =====
 async function menuFirst(pid, to) {
   return sendButtons(pid, to,
-`🏢 *Main Services*`,
+` *Please choose a service below*`,
   [
     btn("LEAVE_MENU", "Leave & Attendance"),
     btn("CLAIM", "Claims"),
