@@ -12,7 +12,6 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
-// GOOGLE SHEET API
 const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
 
 const userState = new Map();
@@ -36,19 +35,6 @@ async function getUser(phone) {
     console.log("Sheet error:", err.message);
     return null;
   }
-}
-
-// ===== ANTI REPEAT =====
-function blockUser(user, action, time = 300000) {
-  const key = user + "_" + action;
-  const now = Date.now();
-
-  if (userState.has(key)) {
-    if (now - userState.get(key) < time) return true;
-  }
-
-  userState.set(key, now);
-  return false;
 }
 
 // ===== VERIFY =====
@@ -76,7 +62,7 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
-    // ✅ BLOCK DUPLICATE MESSAGE ID
+    // ✅ Prevent duplicate messages
     if (msg.id) {
       if (userState.has(msg.id)) return res.sendStatus(200);
       userState.set(msg.id, true);
@@ -84,7 +70,6 @@ app.post("/webhook", async (req, res) => {
 
     // ===== FLOW RESPONSE =====
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
-      if (blockUser(from, "FLOW", 300000)) return res.sendStatus(200);
       await sendText(pid, from, "✅ Leave applied successfully");
       return res.sendStatus(200);
     }
@@ -94,10 +79,6 @@ app.post("/webhook", async (req, res) => {
       const text = msg.text.body.toLowerCase().trim();
 
       if (text === "hi" || text === "hello") {
-
-        if (blockUser(from, "GREETING", 60000)) {
-          return res.sendStatus(200);
-        }
 
         const user = await getUser(from);
 
@@ -110,28 +91,24 @@ app.post("/webhook", async (req, res) => {
 
         // LOGO
         await sendImage(pid, from, LOGO);
-        await delay(1000);
+        await delay(800);
 
-        // INSTRUCTIONS (ONLY ONCE)
+        // Instructions only once
         if (!userState.has(firstKey)) {
           userState.set(firstKey, true);
 
           await sendText(pid, from,
 `Welcome ${user.Name}
 
-Please choose one of the options below:
-
-• Apply for leave or submit a claim  
-• View payslip or timesheet  
-• Access your profile or get support
-
- Please select an option to continue.`);
-
-          await delay(1000);
+Please choose a service below.`);
+          await delay(800);
         }
 
+        // First 3 buttons
         await menuFirst(pid, from);
-        await delay(800);
+        await delay(600);
+
+        // Next 2 buttons
         await menuSecond(pid, from);
 
         return res.sendStatus(200);
@@ -142,26 +119,22 @@ Please choose one of the options below:
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
-      if (id === "APPLY") return menuApply(pid, from).then(()=>res.sendStatus(200));
-      if (id === "VIEW") return menuView(pid, from).then(()=>res.sendStatus(200));
+      if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
 
-      if (id === "PROFILE") return menuProfile(pid, from).then(()=>res.sendStatus(200));
-      if (id === "REQUEST") return menuRequest(pid, from).then(()=>res.sendStatus(200));
+      if (id === "CLAIM") return sendText(pid, from, "💰 Claims module").then(()=>res.sendStatus(200));
+      if (id === "PAYROLL") return sendText(pid, from, "🏦 Payroll module").then(()=>res.sendStatus(200));
 
-      if (id === "BACK1") return menuFirst(pid, from).then(()=>res.sendStatus(200));
-      if (id === "BACK2") return menuSecond(pid, from).then(()=>res.sendStatus(200));
+      if (id === "POLICY") return sendText(pid, from, "📄 Company policies").then(()=>res.sendStatus(200));
+      if (id === "CONTACT") return sendText(pid, from, "📞 HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
 
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
-      if (id === "CLAIM") return sendText(pid, from, "💰 Claim module coming soon").then(()=>res.sendStatus(200));
+      if (id === "OVERTIME") return sendText(pid, from, "⏱ Overtime module").then(()=>res.sendStatus(200));
 
-      if (id === "PAYSLIP") return sendText(pid, from, "📄 Payslip module").then(()=>res.sendStatus(200));
-      if (id === "TIMESHEET") return sendText(pid, from, "⏱ Timesheet module").then(()=>res.sendStatus(200));
-
-      if (id === "MANAGER") return sendText(pid, from, "👨‍💼 Manager details").then(()=>res.sendStatus(200));
-      if (id === "REPORTEE") return sendText(pid, from, "👥 Reportee details").then(()=>res.sendStatus(200));
-
-      if (id === "INT") return sendText(pid, from, "🎫 Internal ticket created").then(()=>res.sendStatus(200));
-      if (id === "EXT") return sendText(pid, from, "🌐 External ticket created").then(()=>res.sendStatus(200));
+      if (id === "BACK_MAIN") {
+        await menuFirst(pid, from);
+        await delay(600);
+        return menuSecond(pid, from).then(()=>res.sendStatus(200));
+      }
     }
 
     return res.sendStatus(200);
@@ -240,73 +213,30 @@ async function sendButtons(pid, to, text, buttons) {
 // ===== MENUS =====
 async function menuFirst(pid, to) {
   return sendButtons(pid, to,
-` *Main Menu*
-
-Please select an option:
-
-• Apply for leave or claims  
-• View payslip or timesheet`,
+`🏢 *Main Services*`,
   [
-    btn("APPLY", "Apply"),
-    btn("VIEW", "View")
+    btn("LEAVE_MENU", "Leave & Attendance"),
+    btn("CLAIM", "Claims"),
+    btn("PAYROLL", "Payroll")
   ]);
 }
 
 async function menuSecond(pid, to) {
   return sendButtons(pid, to,
-` *More Options*
-
-*Profile*
-• Reporting Manager  
-• Reportees  
-
-*Support*
-• Internal Ticket  
-• External Ticket`,
+`More options:`,
   [
-    btn("PROFILE", "Profile"),
-    btn("REQUEST", "Support")
+    btn("POLICY", "Policies"),
+    btn("CONTACT", "Contact HR")
   ]);
 }
 
-// ===== SUB MENUS =====
-async function menuApply(pid, to) {
+async function menuLeave(pid, to) {
   return sendButtons(pid, to,
-` *Apply Options*`,
+`📅 *Leave & Attendance*`,
   [
-    btn("LEAVE", "Leave"),
-    btn("CLAIM", "Claim"),
-    btn("BACK1", "⬅ Back")
-  ]);
-}
-
-async function menuView(pid, to) {
-  return sendButtons(pid, to,
-` *View Options*`,
-  [
-    btn("PAYSLIP", "Payslip"),
-    btn("TIMESHEET", "Timesheet"),
-    btn("BACK1", "⬅ Back")
-  ]);
-}
-
-async function menuProfile(pid, to) {
-  return sendButtons(pid, to,
-` *Profile Options*`,
-  [
-    btn("MANAGER", "Manager"),
-    btn("REPORTEE", "Reportees"),
-    btn("BACK2", "⬅ Back")
-  ]);
-}
-
-async function menuRequest(pid, to) {
-  return sendButtons(pid, to,
-` *Support Options*`,
-  [
-    btn("INT", "Internal"),
-    btn("EXT", "External"),
-    btn("BACK2", "⬅ Back")
+    btn("LEAVE", "Apply Leave"),
+    btn("OVERTIME", "Overtime"),
+    btn("BACK_MAIN", "⬅ Back")
   ]);
 }
 
