@@ -12,13 +12,13 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
-// ✅ GOOGLE SHEET API
+// GOOGLE SHEET API
 const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
 
 const userState = new Map();
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-// ===== CHECK USER FROM SHEET =====
+// ===== CHECK USER =====
 async function getUser(phone) {
   try {
     const res = await axios.get(SHEET_API);
@@ -76,10 +76,16 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
+    // ✅ BLOCK DUPLICATE MESSAGE ID
+    if (msg.id) {
+      if (userState.has(msg.id)) return res.sendStatus(200);
+      userState.set(msg.id, true);
+    }
+
     // ===== FLOW RESPONSE =====
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
       if (blockUser(from, "FLOW", 300000)) return res.sendStatus(200);
-      await sendText(pid, from, "Leave applied successfully");
+      await sendText(pid, from, "✅ Leave applied successfully");
       return res.sendStatus(200);
     }
 
@@ -93,38 +99,37 @@ app.post("/webhook", async (req, res) => {
           return res.sendStatus(200);
         }
 
-        // ✅ CHECK USER IN GOOGLE SHEET
         const user = await getUser(from);
 
         if (!user) {
-          await sendText(pid, from, "You are not registered. Please contact HR.");
+          await sendText(pid, from, "❌ You are not registered. Please contact HR.");
           return res.sendStatus(200);
         }
 
-        // ===== FIRST TIME ONLY =====
         const firstKey = from + "_FIRST";
 
         // LOGO
         await sendImage(pid, from, LOGO);
         await delay(1000);
 
+        // INSTRUCTIONS (ONLY ONCE)
         if (!userState.has(firstKey)) {
           userState.set(firstKey, true);
 
-          // INSTRUCTIONS (ONLY ONCE)
           await sendText(pid, from,
 `Welcome ${user.Name}
 
-Please select from the options below:
-- Apply for leave or claims
-- View payslip or timesheet
-- Access profile and support`
-          );
+Please choose one of the options below:
+
+• Apply for leave or submit a claim  
+• View payslip or timesheet  
+• Access your profile or get support
+
+👉 Please select an option to continue.`);
 
           await delay(1000);
         }
 
-        // MENUS
         await menuFirst(pid, from);
         await delay(800);
         await menuSecond(pid, from);
@@ -147,16 +152,16 @@ Please select from the options below:
       if (id === "BACK2") return menuSecond(pid, from).then(()=>res.sendStatus(200));
 
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
-      if (id === "CLAIM") return sendText(pid, from, "Claim module").then(()=>res.sendStatus(200));
+      if (id === "CLAIM") return sendText(pid, from, "💰 Claim module coming soon").then(()=>res.sendStatus(200));
 
-      if (id === "PAYSLIP") return sendText(pid, from, "Payslip module").then(()=>res.sendStatus(200));
-      if (id === "TIMESHEET") return sendText(pid, from, "Timesheet module").then(()=>res.sendStatus(200));
+      if (id === "PAYSLIP") return sendText(pid, from, "📄 Payslip module").then(()=>res.sendStatus(200));
+      if (id === "TIMESHEET") return sendText(pid, from, "⏱ Timesheet module").then(()=>res.sendStatus(200));
 
-      if (id === "MANAGER") return sendText(pid, from, "Manager details").then(()=>res.sendStatus(200));
-      if (id === "REPORTEE") return sendText(pid, from, "Reportee details").then(()=>res.sendStatus(200));
+      if (id === "MANAGER") return sendText(pid, from, "👨‍💼 Manager details").then(()=>res.sendStatus(200));
+      if (id === "REPORTEE") return sendText(pid, from, "👥 Reportee details").then(()=>res.sendStatus(200));
 
-      if (id === "INT") return sendText(pid, from, "Internal ticket").then(()=>res.sendStatus(200));
-      if (id === "EXT") return sendText(pid, from, "External ticket").then(()=>res.sendStatus(200));
+      if (id === "INT") return sendText(pid, from, "🎫 Internal ticket created").then(()=>res.sendStatus(200));
+      if (id === "EXT") return sendText(pid, from, "🌐 External ticket created").then(()=>res.sendStatus(200));
     }
 
     return res.sendStatus(200);
@@ -167,7 +172,7 @@ Please select from the options below:
   }
 });
 
-// ===== SEND =====
+// ===== SEND FUNCTIONS =====
 async function sendText(pid, to, body) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
     messaging_product: "whatsapp",
@@ -234,68 +239,75 @@ async function sendButtons(pid, to, text, buttons) {
 
 // ===== MENUS =====
 async function menuFirst(pid, to) {
-  await sendText(pid, to,
-`Menu
+  return sendButtons(pid, to,
+`📋 *Main Menu*
 
+Please select an option:
 
-  );
-
-  return sendButtons(pid, to, "Select", [
+• Apply for leave or claims  
+• View payslip or timesheet`,
+  [
     btn("APPLY", "Apply"),
     btn("VIEW", "View")
   ]);
 }
 
 async function menuSecond(pid, to) {
-  await sendText(pid, to,
-`More Options
+  return sendButtons(pid, to,
+`⚙️ *More Options*
 
-Profile
- |_Reporting Manager
- |_Reportees
+*Profile*
+• Reporting Manager  
+• Reportees  
 
-Support
- |_Internal Ticket
- |_External Ticket`
-  );
-
-  return sendButtons(pid, to, "Select", [
+*Support*
+• Internal Ticket  
+• External Ticket`,
+  [
     btn("PROFILE", "Profile"),
-    btn("REQUEST", "Request")
+    btn("REQUEST", "Support")
   ]);
 }
 
 // ===== SUB MENUS =====
 async function menuApply(pid, to) {
-  return sendButtons(pid, to, "Apply Options", [
+  return sendButtons(pid, to,
+`📝 *Apply Options*`,
+  [
     btn("LEAVE", "Leave"),
     btn("CLAIM", "Claim"),
-    btn("BACK1", "Back")
+    btn("BACK1", "⬅ Back")
   ]);
 }
 
 async function menuView(pid, to) {
-  return sendButtons(pid, to, "View Options", [
+  return sendButtons(pid, to,
+`📊 *View Options*`,
+  [
     btn("PAYSLIP", "Payslip"),
-    btn("TIMESHEET", "Time Sheet"),
-    btn("BACK1", "Back")
+    btn("TIMESHEET", "Timesheet"),
+    btn("BACK1", "⬅ Back")
   ]);
 }
 
 async function menuProfile(pid, to) {
-  return sendButtons(pid, to, "Profile Options", [
+  return sendButtons(pid, to,
+`👤 *Profile Options*`,
+  [
     btn("MANAGER", "Manager"),
-    btn("REPORTEE", "Reportee"),
-    btn("BACK2", "Back")
+    btn("REPORTEE", "Reportees"),
+    btn("BACK2", "⬅ Back")
   ]);
 }
 
 async function menuRequest(pid, to) {
-  return sendButtons(pid, to, "Request Options", [
+  return sendButtons(pid, to,
+`🎫 *Support Options*`,
+  [
     btn("INT", "Internal"),
     btn("EXT", "External"),
-    btn("BACK2", "Back")
+    btn("BACK2", "⬅ Back")
   ]);
 }
 
-app.listen(3000, () => console.log("HR BOT READY"));
+app.listen(3000, () => console.log("✅ HR BOT READY"));
