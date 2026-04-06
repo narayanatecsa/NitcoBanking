@@ -125,7 +125,7 @@ Please choose one of the options below:
 • View payslip or timesheet  
 • Access your profile or get support
 
-👉 Please select an option to continue.`);
+ Please select an option to continue.`);
 
           await delay(1000);
         }
@@ -240,7 +240,7 @@ async function sendButtons(pid, to, text, buttons) {
 // ===== MENUS =====
 async function menuFirst(pid, to) {
   return sendButtons(pid, to,
-`📋 *Main Menu*
+` *Main Menu*
 
 Please select an option:
 
@@ -254,7 +254,7 @@ Please select an option:
 
 async function menuSecond(pid, to) {
   return sendButtons(pid, to,
-`⚙️ *More Options*
+` *More Options*
 
 *Profile*
 • Reporting Manager  
@@ -272,7 +272,7 @@ async function menuSecond(pid, to) {
 // ===== SUB MENUS =====
 async function menuApply(pid, to) {
   return sendButtons(pid, to,
-`📝 *Apply Options*`,
+` *Apply Options*`,
   [
     btn("LEAVE", "Leave"),
     btn("CLAIM", "Claim"),
@@ -282,7 +282,7 @@ async function menuApply(pid, to) {
 
 async function menuView(pid, to) {
   return sendButtons(pid, to,
-`📊 *View Options*`,
+` *View Options*`,
   [
     btn("PAYSLIP", "Payslip"),
     btn("TIMESHEET", "Timesheet"),
@@ -292,7 +292,7 @@ async function menuView(pid, to) {
 
 async function menuProfile(pid, to) {
   return sendButtons(pid, to,
-`👤 *Profile Options*`,
+` *Profile Options*`,
   [
     btn("MANAGER", "Manager"),
     btn("REPORTEE", "Reportees"),
@@ -302,7 +302,7 @@ async function menuProfile(pid, to) {
 
 async function menuRequest(pid, to) {
   return sendButtons(pid, to,
-`🎫 *Support Options*`,
+` *Support Options*`,
   [
     btn("INT", "Internal"),
     btn("EXT", "External"),
