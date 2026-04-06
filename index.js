@@ -62,19 +62,19 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
-    // ✅ Prevent duplicate messages
+    // Prevent duplicate messages
     if (msg.id) {
       if (userState.has(msg.id)) return res.sendStatus(200);
       userState.set(msg.id, true);
     }
 
-    // ===== FLOW RESPONSE =====
+    // FLOW RESPONSE
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
       await sendText(pid, from, "✅ Leave applied successfully");
       return res.sendStatus(200);
     }
 
-    // ===== TEXT =====
+    // TEXT
     if (msg.type === "text") {
       const text = msg.text.body.toLowerCase().trim();
 
@@ -89,33 +89,29 @@ app.post("/webhook", async (req, res) => {
 
         const firstKey = from + "_FIRST";
 
-        // LOGO
         await sendImage(pid, from, LOGO);
         await delay(800);
 
-        // Instructions only once
         if (!userState.has(firstKey)) {
           userState.set(firstKey, true);
 
           await sendText(pid, from,
 `Hello ${user.Name}
 
-Welcome to HRPlace 👋.How can I assist you today?`);
+Welcome to HRPlace 👋
+Please choose a service below.`);
           await delay(800);
         }
 
-        // First 3 buttons
         await menuFirst(pid, from);
         await delay(600);
-
-        // Next 2 buttons
         await menuSecond(pid, from);
 
         return res.sendStatus(200);
       }
     }
 
-    // ===== BUTTON =====
+    // BUTTON HANDLER
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
@@ -128,7 +124,12 @@ Welcome to HRPlace 👋.How can I assist you today?`);
       if (id === "CONTACT") return sendText(pid, from, "📞 HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
 
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
-      if (id === "OVERTIME") return sendText(pid, from, "⏱ Overtime module").then(()=>res.sendStatus(200));
+
+      if (id === "BALANCE") return sendText(pid, from, "📊 Leave balance details").then(()=>res.sendStatus(200));
+      if (id === "EDIT") return sendText(pid, from, "✏️ Edit or cancel leave").then(()=>res.sendStatus(200));
+
+      if (id === "ATTENDANCE") return sendText(pid, from, "📅 Attendance details").then(()=>res.sendStatus(200));
+      if (id === "REGULARIZE") return sendText(pid, from, "🛠 Regularize attendance").then(()=>res.sendStatus(200));
 
       if (id === "BACK_MAIN") {
         await menuFirst(pid, from);
@@ -190,7 +191,7 @@ async function sendFlow(pid, to) {
   });
 }
 
-// ===== BUTTON =====
+// ===== BUTTON UTILS =====
 function btn(id, title) {
   return { type: "reply", reply: { id, title } };
 }
@@ -213,7 +214,7 @@ async function sendButtons(pid, to, text, buttons) {
 // ===== MENUS =====
 async function menuFirst(pid, to) {
   return sendButtons(pid, to,
-` *Please choose a service below*`,
+`🏢 *Main Services*`,
   [
     btn("LEAVE_MENU", "Leave & Attendance"),
     btn("CLAIM", "Claims"),
@@ -230,12 +231,26 @@ async function menuSecond(pid, to) {
   ]);
 }
 
+// ===== LEAVE MENU (SPLIT 3 + 2) =====
 async function menuLeave(pid, to) {
-  return sendButtons(pid, to,
-`📅 *Leave & Attendance*`,
+
+  await sendButtons(pid, to,
+`📅 *Leave & Attendance*
+
+Select an action:`,
   [
     btn("LEAVE", "Apply Leave"),
-    btn("OVERTIME", "Overtime"),
+    btn("BALANCE", "Leave Balance"),
+    btn("EDIT", "Edit/Cancel")
+  ]);
+
+  await delay(600);
+
+  return sendButtons(pid, to,
+`More actions:`,
+  [
+    btn("ATTENDANCE", "View Attendance"),
+    btn("REGULARIZE", "Regularize"),
     btn("BACK_MAIN", "⬅ Back")
   ]);
 }
