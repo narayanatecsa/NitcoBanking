@@ -82,12 +82,12 @@ app.post("/webhook", async (req, res) => {
     userState.set(msg.id, true);
 
 
-    // ================== ✅ LEAVE FLOW FIX ==================
+    // ================== ✅ LEAVE FLOW ==================
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
       let raw = msg.interactive.nfm_reply.response_json;
 
-      // FIX JSON STRING
+      // ✅ Fix JSON string issue
       if (typeof raw === "string") {
         try {
           raw = JSON.parse(raw);
@@ -98,8 +98,24 @@ app.post("/webhook", async (req, res) => {
 
       const data = raw?.data || raw;
 
-      const clean = (v) =>
-        v ? String(v).replace(/\$\{|\}/g, "") : "Not provided";
+      // ✅ FINAL CLEAN FUNCTION
+      function clean(val, key) {
+        if (!val) return "Not provided";
+
+        const v = String(val).trim();
+
+        if (
+          v === key ||
+          v === "${" + key + "}" ||
+          v.toLowerCase() === key
+        ) {
+          return "Not provided";
+        }
+
+        return v;
+      }
+
+      console.log("FLOW DATA:", data);
 
       const user = await getUser(from);
       if (!user) return res.sendStatus(200);
@@ -117,25 +133,27 @@ app.post("/webhook", async (req, res) => {
         empName: user.Name,
         empPhone: from,
         managerPhone: manager.Mobile,
-        leaveType: clean(data.leave_type),
-        duration: clean(data.duration),
-        fromDate: clean(data.from_date),
-        toDate: clean(data.to_date),
-        reason: clean(data.reason),
+        leaveType: clean(data.leave_type, "leave_type"),
+        duration: clean(data.duration, "duration"),
+        fromDate: clean(data.from_date, "from_date"),
+        toDate: clean(data.to_date, "to_date"),
+        reason: clean(data.reason, "reason"),
         status: "PENDING"
       };
 
       leaveDB.set(leaveId, leave);
 
+      // Employee confirmation
       await sendText(pid, from,
 `✅ Leave Applied
 ID: ${leaveId}
 Status: PENDING`);
 
-      // FIX MANAGER NUMBER
+      // ✅ Fix manager phone
       let m = String(manager.Mobile).replace(/\D/g, "");
       if (!m.startsWith("91")) m = "91" + m;
 
+      // Send to manager
       await sendButtons(pid, m,
 `📢 Leave Request
 
@@ -237,7 +255,7 @@ Status: ${leave.status}`);
 });
 
 
-// ===== SEND =====
+// ===== SEND FUNCTIONS =====
 async function sendText(pid, to, body) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
     messaging_product: "whatsapp",
