@@ -15,7 +15,7 @@ const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
 
 const userState = new Map();
-const leaveDB = new Map();
+const leaveDB = new Map(); // ✅ NEW
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -41,7 +41,7 @@ async function getUser(phone) {
 }
 
 
-// ===== GET MANAGER =====
+// ===== GET MANAGER BY NAME =====
 async function getManagerByName(name) {
   try {
     const res = await axios.get(SHEET_API);
@@ -82,64 +82,68 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
-    // Prevent duplicate
+    // Prevent duplicate messages
     if (msg.id) {
       if (userState.has(msg.id)) return res.sendStatus(200);
       userState.set(msg.id, true);
     }
 
+// ================== ✅ LEAVE FLOW LOGIC ==================
+if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
-    // ================== ✅ LEAVE FLOW FIX ==================
-    if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
+  // ✅ FIX: handle both response formats
+  const raw = msg.interactive.nfm_reply.response_json;
+  const data = raw?.data || raw;
 
-      // ✅ FIXED DATA EXTRACTION
-      const raw = msg.interactive.nfm_reply.response_json;
-      const data = raw?.data || raw;
+  // (optional debug)
+  console.log("FLOW DATA:", JSON.stringify(data, null, 2));
 
-      console.log("FLOW DATA:", JSON.stringify(data, null, 2)); // debug
+  const user = await getUser(from);
+  if (!user) return res.sendStatus(200);
 
-      const user = await getUser(from);
-      if (!user) return res.sendStatus(200);
+  // 👉 Find Manager
+  const manager = await getManagerByName(user.Reportee);
 
-      const manager = await getManagerByName(user.Reportee);
+  if (!manager) {
+    await sendText(pid, from, "❌ Manager not found");
+    return res.sendStatus(200);
+  }
 
-      if (!manager) {
-        await sendText(pid, from, "❌ Manager not found");
-        return res.sendStatus(200);
-      }
+  // ✅ SAFE VALUES (NO UNDEFINED)
+  const leaveType = data.leave_type || "Not provided";
+  const duration = data.duration || "Not provided";
+  const fromDate = data.from_date || "Not provided";
+  const toDate = data.to_date || "Not provided";
+  const reason = data.reason || "Not provided";
 
-      // ✅ SAFE VALUES (NO MORE UNDEFINED)
-      const leaveType = data.leave_type || "Not provided";
-      const duration = data.duration || "Not provided";
-      const fromDate = data.from_date || "Not provided";
-      const toDate = data.to_date || "Not provided";
-      const reason = data.reason || "Not provided";
+  const leaveId = "L" + Date.now();
 
-      const leaveId = "L" + Date.now();
+  const leave = {
+    id: leaveId,
+    empName: user.Name,
+    empPhone: from,
+    managerPhone: manager.Mobile,
 
-      const leave = {
-        id: leaveId,
-        empName: user.Name,
-        empPhone: from,
-        managerPhone: manager.Mobile,
-        leaveType,
-        duration,
-        fromDate,
-        toDate,
-        reason,
-        status: "PENDING"
-      };
+    // ✅ UPDATED VALUES
+    leaveType,
+    duration,
+    fromDate,
+    toDate,
+    reason,
 
-      leaveDB.set(leaveId, leave);
+    status: "PENDING"
+  };
 
-      // Employee confirmation
-      await sendText(pid, from,
+  leaveDB.set(leaveId, leave);
+
+  // Employee confirmation
+  await sendText(pid, from,
 `✅ Leave Applied
 ID: ${leaveId}
 Status: PENDING`);
 
-      // ✅ FULL DETAILS TO MANAGER
-      await sendButtons(pid, manager.Mobile,
+  // ✅ UPDATED MANAGER MESSAGE (FULL DETAILS)
+  await sendButtons(pid, manager.Mobile,
 `📢 Leave Request
 
 Employee: ${leave.empName}
@@ -151,13 +155,12 @@ Reason: ${leave.reason}
 
 ID: ${leave.id}`,
 [
-        btn(`START_${leaveId}`, "Pending")
-      ]);
+    btn(`START_${leaveId}`, "Pending")
+  ]);
 
-      return res.sendStatus(200);
-    }
-
-
+  return res.sendStatus(200);
+}
+   
     // ================== TEXT ==================
     if (msg.type === "text") {
       const text = msg.text.body.toLowerCase().trim();
@@ -167,7 +170,7 @@ ID: ${leave.id}`,
         const user = await getUser(from);
 
         if (!user) {
-          await sendText(pid, from, "❌ You are not registered.");
+          await sendText(pid, from, "❌ You are not registered. Please contact HR.");
           return res.sendStatus(200);
         }
 
@@ -201,6 +204,7 @@ Please choose a service below.`);
       const id = msg.interactive.button_reply.id;
 
 
+      // ===== LEAVE FLOW =====
       if (id.startsWith("START_")) {
 
         const leaveId = id.split("_")[1];
@@ -251,7 +255,28 @@ Status: ${leave.status}`);
       }
 
 
+      // ===== EXISTING BUTTONS =====
+      if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
+
+      if (id === "CLAIM") return sendText(pid, from, " Claims module").then(()=>res.sendStatus(200));
+      if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
+
+      if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
+      if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
+
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
+
+      if (id === "BALANCE") return sendText(pid, from, " Leave balance details").then(()=>res.sendStatus(200));
+      if (id === "EDIT") return sendText(pid, from, " Edit or cancel leave").then(()=>res.sendStatus(200));
+
+      if (id === "ATTENDANCE") return sendText(pid, from, " Attendance details").then(()=>res.sendStatus(200));
+      if (id === "REGULARIZE") return sendText(pid, from, " Regularize attendance").then(()=>res.sendStatus(200));
+
+      if (id === "BACK_MAIN") {
+        await menuFirst(pid, from);
+        await delay(600);
+        return menuSecond(pid, from).then(()=>res.sendStatus(200));
+      }
     }
 
     return res.sendStatus(200);
@@ -329,5 +354,52 @@ async function sendButtons(pid, to, text, buttons) {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
 }
+
+
+// ===== MENUS =====
+async function menuFirst(pid, to) {
+  return sendButtons(pid, to,
+` *Main Services*`,
+  [
+    btn("LEAVE_MENU", "Leave & Attendance"),
+    btn("CLAIM", "Claims"),
+    btn("PAYROLL", "Payroll")
+  ]);
+}
+
+async function menuSecond(pid, to) {
+  return sendButtons(pid, to,
+`More options:`,
+  [
+    btn("POLICY", "Policies"),
+    btn("CONTACT", "Contact HR")
+  ]);
+}
+
+
+// ===== LEAVE MENU =====
+async function menuLeave(pid, to) {
+
+  await sendButtons(pid, to,
+` *Leave & Attendance*
+
+Select an action:`,
+  [
+    btn("LEAVE", "Apply Leave"),
+    btn("BALANCE", "Leave Balance"),
+    btn("EDIT", "Edit/Cancel")
+  ]);
+
+  await delay(600);
+
+  return sendButtons(pid, to,
+`More actions:`,
+  [
+    btn("ATTENDANCE", "View Attendance"),
+    btn("REGULARIZE", "Regularize"),
+    btn("BACK_MAIN", "⬅ Back")
+  ]);
+}
+
 
 app.listen(3000, () => console.log("✅ HR BOT READY"));
