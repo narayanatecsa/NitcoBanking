@@ -15,7 +15,7 @@ const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
 
 const userState = new Map();
-const leaveDB = new Map(); // ✅ NEW
+const leaveDB = new Map();
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -41,7 +41,7 @@ async function getUser(phone) {
 }
 
 
-// ===== GET MANAGER BY NAME =====
+// ===== GET MANAGER =====
 async function getManagerByName(name) {
   try {
     const res = await axios.get(SHEET_API);
@@ -82,28 +82,38 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
-    // Prevent duplicate messages
+    // Prevent duplicate
     if (msg.id) {
       if (userState.has(msg.id)) return res.sendStatus(200);
       userState.set(msg.id, true);
     }
 
 
-    // ================== ✅ LEAVE FLOW LOGIC ==================
+    // ================== ✅ LEAVE FLOW FIX ==================
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
-      const data = msg.interactive.nfm_reply.response_json;
+      // ✅ FIXED DATA EXTRACTION
+      const raw = msg.interactive.nfm_reply.response_json;
+      const data = raw?.data || raw;
+
+      console.log("FLOW DATA:", JSON.stringify(data, null, 2)); // debug
 
       const user = await getUser(from);
       if (!user) return res.sendStatus(200);
 
-      // 👉 Find Manager (Sreekar)
       const manager = await getManagerByName(user.Reportee);
 
       if (!manager) {
         await sendText(pid, from, "❌ Manager not found");
         return res.sendStatus(200);
       }
+
+      // ✅ SAFE VALUES (NO MORE UNDEFINED)
+      const leaveType = data.leave_type || "Not provided";
+      const duration = data.duration || "Not provided";
+      const fromDate = data.from_date || "Not provided";
+      const toDate = data.to_date || "Not provided";
+      const reason = data.reason || "Not provided";
 
       const leaveId = "L" + Date.now();
 
@@ -112,9 +122,11 @@ app.post("/webhook", async (req, res) => {
         empName: user.Name,
         empPhone: from,
         managerPhone: manager.Mobile,
-        fromDate: data.from_date,
-        toDate: data.to_date,
-        reason: data.reason,
+        leaveType,
+        duration,
+        fromDate,
+        toDate,
+        reason,
         status: "PENDING"
       };
 
@@ -126,11 +138,13 @@ app.post("/webhook", async (req, res) => {
 ID: ${leaveId}
 Status: PENDING`);
 
-      // Send to Manager
+      // ✅ FULL DETAILS TO MANAGER
       await sendButtons(pid, manager.Mobile,
 `📢 Leave Request
 
 Employee: ${leave.empName}
+Type: ${leave.leaveType}
+Duration: ${leave.duration}
 From: ${leave.fromDate}
 To: ${leave.toDate}
 Reason: ${leave.reason}
@@ -153,7 +167,7 @@ ID: ${leave.id}`,
         const user = await getUser(from);
 
         if (!user) {
-          await sendText(pid, from, "❌ You are not registered. Please contact HR.");
+          await sendText(pid, from, "❌ You are not registered.");
           return res.sendStatus(200);
         }
 
@@ -187,7 +201,6 @@ Please choose a service below.`);
       const id = msg.interactive.button_reply.id;
 
 
-      // ===== LEAVE FLOW =====
       if (id.startsWith("START_")) {
 
         const leaveId = id.split("_")[1];
@@ -238,28 +251,7 @@ Status: ${leave.status}`);
       }
 
 
-      // ===== EXISTING BUTTONS =====
-      if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
-
-      if (id === "CLAIM") return sendText(pid, from, " Claims module").then(()=>res.sendStatus(200));
-      if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
-
-      if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
-      if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
-
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
-
-      if (id === "BALANCE") return sendText(pid, from, " Leave balance details").then(()=>res.sendStatus(200));
-      if (id === "EDIT") return sendText(pid, from, " Edit or cancel leave").then(()=>res.sendStatus(200));
-
-      if (id === "ATTENDANCE") return sendText(pid, from, " Attendance details").then(()=>res.sendStatus(200));
-      if (id === "REGULARIZE") return sendText(pid, from, " Regularize attendance").then(()=>res.sendStatus(200));
-
-      if (id === "BACK_MAIN") {
-        await menuFirst(pid, from);
-        await delay(600);
-        return menuSecond(pid, from).then(()=>res.sendStatus(200));
-      }
     }
 
     return res.sendStatus(200);
@@ -337,52 +329,5 @@ async function sendButtons(pid, to, text, buttons) {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
 }
-
-
-// ===== MENUS =====
-async function menuFirst(pid, to) {
-  return sendButtons(pid, to,
-` *Main Services*`,
-  [
-    btn("LEAVE_MENU", "Leave & Attendance"),
-    btn("CLAIM", "Claims"),
-    btn("PAYROLL", "Payroll")
-  ]);
-}
-
-async function menuSecond(pid, to) {
-  return sendButtons(pid, to,
-`More options:`,
-  [
-    btn("POLICY", "Policies"),
-    btn("CONTACT", "Contact HR")
-  ]);
-}
-
-
-// ===== LEAVE MENU =====
-async function menuLeave(pid, to) {
-
-  await sendButtons(pid, to,
-` *Leave & Attendance*
-
-Select an action:`,
-  [
-    btn("LEAVE", "Apply Leave"),
-    btn("BALANCE", "Leave Balance"),
-    btn("EDIT", "Edit/Cancel")
-  ]);
-
-  await delay(600);
-
-  return sendButtons(pid, to,
-`More actions:`,
-  [
-    btn("ATTENDANCE", "View Attendance"),
-    btn("REGULARIZE", "Regularize"),
-    btn("BACK_MAIN", "⬅ Back")
-  ]);
-}
-
 
 app.listen(3000, () => console.log("✅ HR BOT READY"));
