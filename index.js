@@ -1,55 +1,63 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
+const mysql = require("mysql2/promise");
 require("dotenv").config();
 
 const app = express();
 app.use(bodyParser.json());
 
+// ===== ENV =====
 const TOKEN = process.env.TOKEN;
 const VERIFY = process.env.MYTOKEN;
 const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
-const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
+// ===== MYSQL CONNECTION =====
+const db = mysql.createPool({
+  host: "localhost",
+  user: "psrnlnarayana_poojalist",
+  password: "5ucce55Ex@narayana",
+  database: "psrnlnarayana_HRPlace"
+});
 
+// ===== MEMORY =====
 const userState = new Map();
-const leaveDB = new Map(); // ✅ NEW
+const leaveDB = new Map();
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 
-// ===== GET USER =====
+// ================== ✅ GET USER FROM DB ==================
 async function getUser(phone) {
   try {
-    const res = await axios.get(SHEET_API);
-    const users = res.data;
-
     const clean = phone.replace(/\D/g, "");
 
-    const user = users.find(u =>
-      String(u.Mobile).replace(/\D/g, "") === clean
+    const [rows] = await db.execute(
+      "SELECT * FROM employees WHERE mobile = ? AND status = 'Active'",
+      [clean]
     );
 
-    return user && user.Status === "Active" ? user : null;
+    return rows[0] || null;
 
   } catch (err) {
-    console.log("Sheet error:", err.message);
+    console.log("DB error:", err.message);
     return null;
   }
 }
 
 
-// ===== GET MANAGER BY NAME =====
-async function getManagerByName(name) {
+// ================== ✅ GET MANAGER ==================
+async function getManagerById(manager_id) {
   try {
-    const res = await axios.get(SHEET_API);
-    const users = res.data;
-
-    return users.find(u =>
-      u.Name.toLowerCase() === name.toLowerCase()
+    const [rows] = await db.execute(
+      "SELECT * FROM employees WHERE emp_id = ?",
+      [manager_id]
     );
+
+    return rows[0] || null;
+
   } catch (e) {
     return null;
   }
@@ -68,81 +76,17 @@ app.get("/webhook", (req, res) => {
 });
 
 
-// ===== WEBHOOK =====
+// ================== WEBHOOK ==================
 app.post("/webhook", async (req, res) => {
   try {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
-
-    if (change.statuses) return res.sendStatus(200);
 
     const msg = change.messages?.[0];
     if (!msg) return res.sendStatus(200);
 
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
-
-    // Prevent duplicate messages
-    if (msg.id) {
-      if (userState.has(msg.id)) return res.sendStatus(200);
-      userState.set(msg.id, true);
-    }
-
-
-    // ================== ✅ LEAVE FLOW LOGIC ==================
-    if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
-
-      const data = msg.interactive.nfm_reply.response_json;
-
-      const user = await getUser(from);
-      if (!user) return res.sendStatus(200);
-
-      // 👉 Find Manager (Sreekar)
-      const manager = await getManagerByName(user.Reportee);
-
-      if (!manager) {
-        await sendText(pid, from, "❌ Manager not found");
-        return res.sendStatus(200);
-      }
-
-      const leaveId = "L" + Date.now();
-
-      const leave = {
-        id: leaveId,
-        empName: user.Name,
-        empPhone: from,
-        managerPhone: manager.Mobile,
-        fromDate: data.from_date,
-        toDate: data.to_date,
-        reason: data.reason,
-        status: "PENDING"
-      };
-
-      leaveDB.set(leaveId, leave);
-
-      // Employee confirmation
-      await sendText(pid, from,
-`✅ Leave Applied
-ID: ${leaveId}
-Status: PENDING`);
-
-      // Send to Manager
-      await sendButtons(pid, manager.Mobile,
-`📢 Leave Request
-
-Employee: ${leave.empName}
-From: ${leave.fromDate}
-To: ${leave.toDate}
-Reason: ${leave.reason}
-
-ID: ${leave.id}`,
-[
-        btn(`START_${leaveId}`, "Pending")
-      ]);
-
-      return res.sendStatus(200);
-    }
-
 
     // ================== TEXT ==================
     if (msg.type === "text") {
@@ -153,113 +97,83 @@ ID: ${leave.id}`,
         const user = await getUser(from);
 
         if (!user) {
-          await sendText(pid, from, "❌ You are not registered. Please contact HR.");
+          await sendText(pid, from, "❌ You are not registered.");
           return res.sendStatus(200);
         }
 
-        const firstKey = from + "_FIRST";
-
         await sendImage(pid, from, LOGO);
-        await delay(800);
+        await delay(500);
 
-        if (!userState.has(firstKey)) {
-          userState.set(firstKey, true);
+        await sendText(pid, from,
+`Hello ${user.name}
 
-          await sendText(pid, from,
-`Hello ${user.Name}
+Welcome to HRPlace 👋`);
 
-Welcome to HRPlace 👋
-Please choose a service below.`);
-          await delay(800);
-        }
+        await delay(500);
 
         await menuFirst(pid, from);
-        await delay(600);
-        await menuSecond(pid, from);
 
         return res.sendStatus(200);
       }
     }
 
 
-    // ================== BUTTON HANDLER ==================
+    // ================== BUTTON ==================
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
+      // ===== ATTENDANCE MARK =====
+      if (id === "MARK_ATTENDANCE") {
 
-      // ===== LEAVE FLOW =====
-      if (id.startsWith("START_")) {
+        const user = await getUser(from);
 
-        const leaveId = id.split("_")[1];
-        const leave = leaveDB.get(leaveId);
-
-        if (!leave) {
-          await sendText(pid, from, "❌ Not found");
-          return res.sendStatus(200);
-        }
-
-        leave.status = "IN PROGRESS";
-        leaveDB.set(leaveId, leave);
-
-        await sendText(pid, from, "🟡 Status: IN PROGRESS");
-
-        await sendButtons(pid, from,
-          "Choose action:",
-          [
-            btn(`APPROVE_${leaveId}`, "Approve"),
-            btn(`REJECT_${leaveId}`, "Reject")
-          ]
+        await db.execute(
+          `INSERT INTO attendance (emp_id, date, check_in, status, approval_status)
+           VALUES (?, CURDATE(), NOW(), 'Present', 'Pending')`,
+          [user.emp_id]
         );
 
-        return res.sendStatus(200);
-      }
+        // Get Manager
+        const manager = await getManagerById(user.manager_id);
 
-      if (id.startsWith("APPROVE_") || id.startsWith("REJECT_")) {
+        await sendText(pid, from, "✅ Attendance Marked (Pending Approval)");
 
-        const [action, leaveId] = id.split("_");
-        const leave = leaveDB.get(leaveId);
+        // Send to Manager
+        if (manager) {
+          await sendButtons(pid, manager.mobile,
+`📢 Attendance Approval
 
-        if (!leave) {
-          await sendText(pid, from, "❌ Not found");
-          return res.sendStatus(200);
+Employee: ${user.name}
+Date: Today`,
+          [
+            btn(`APPROVE_ATT_${user.emp_id}`, "Approve"),
+            btn(`REJECT_ATT_${user.emp_id}`, "Reject")
+          ]);
         }
 
-        leave.status = action === "APPROVE" ? "APPROVED" : "REJECTED";
-        leaveDB.set(leaveId, leave);
-
-        await sendText(pid, from, `✅ ${leave.status}`);
-
-        await sendText(pid, leave.empPhone,
-`📌 Leave Update
-ID: ${leave.id}
-Status: ${leave.status}`);
-
         return res.sendStatus(200);
       }
 
 
-      // ===== EXISTING BUTTONS =====
-      if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
+      // ===== APPROVAL =====
+      if (id.startsWith("APPROVE_ATT_") || id.startsWith("REJECT_ATT_")) {
 
-      if (id === "CLAIM") return sendText(pid, from, " Claims module").then(()=>res.sendStatus(200));
-      if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
+        const [action, emp_id] = id.split("_ATT_");
 
-      if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
-      if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
+        const status = action === "APPROVE" ? "Approved" : "Rejected";
 
-      if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
+        await db.execute(
+          `UPDATE attendance 
+           SET approval_status = ? 
+           WHERE emp_id = ? AND date = CURDATE()`,
+          [status, emp_id]
+        );
 
-      if (id === "BALANCE") return sendText(pid, from, " Leave balance details").then(()=>res.sendStatus(200));
-      if (id === "EDIT") return sendText(pid, from, " Edit or cancel leave").then(()=>res.sendStatus(200));
+        await sendText(pid, from, `✅ ${status}`);
 
-      if (id === "ATTENDANCE") return sendText(pid, from, " Attendance details").then(()=>res.sendStatus(200));
-      if (id === "REGULARIZE") return sendText(pid, from, " Regularize attendance").then(()=>res.sendStatus(200));
-
-      if (id === "BACK_MAIN") {
-        await menuFirst(pid, from);
-        await delay(600);
-        return menuSecond(pid, from).then(()=>res.sendStatus(200));
+        return res.sendStatus(200);
       }
+
     }
 
     return res.sendStatus(200);
@@ -294,31 +208,7 @@ async function sendImage(pid, to, url) {
 }
 
 
-// ===== FLOW =====
-async function sendFlow(pid, to) {
-  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
-    messaging_product: "whatsapp",
-    to,
-    type: "interactive",
-    interactive: {
-      type: "flow",
-      body: { text: "Apply Leave" },
-      action: {
-        name: "flow",
-        parameters: {
-          flow_message_version: "3",
-          flow_id: FLOW_ID,
-          flow_cta: "Open"
-        }
-      }
-    }
-  }, {
-    headers: { Authorization: `Bearer ${TOKEN}` }
-  });
-}
-
-
-// ===== BUTTON UTILS =====
+// ===== BUTTONS =====
 function btn(id, title) {
   return { type: "reply", reply: { id, title } };
 }
@@ -339,50 +229,15 @@ async function sendButtons(pid, to, text, buttons) {
 }
 
 
-// ===== MENUS =====
+// ===== MENU =====
 async function menuFirst(pid, to) {
   return sendButtons(pid, to,
-` *Main Services*`,
+`Main Menu`,
   [
-    btn("LEAVE_MENU", "Leave & Attendance"),
-    btn("CLAIM", "Claims"),
-    btn("PAYROLL", "Payroll")
-  ]);
-}
-
-async function menuSecond(pid, to) {
-  return sendButtons(pid, to,
-`More options:`,
-  [
-    btn("POLICY", "Policies"),
-    btn("CONTACT", "Contact HR")
+    btn("MARK_ATTENDANCE", "Mark Attendance")
   ]);
 }
 
 
-// ===== LEAVE MENU =====
-async function menuLeave(pid, to) {
-
-  await sendButtons(pid, to,
-` *Leave & Attendance*
-
-Select an action:`,
-  [
-    btn("LEAVE", "Apply Leave"),
-    btn("BALANCE", "Leave Balance"),
-    btn("EDIT", "Edit/Cancel")
-  ]);
-
-  await delay(600);
-
-  return sendButtons(pid, to,
-`More actions:`,
-  [
-    btn("ATTENDANCE", "View Attendance"),
-    btn("REGULARIZE", "Regularize"),
-    btn("BACK_MAIN", "⬅ Back")
-  ]);
-}
-
-
-app.listen(3000, () => console.log("✅ HR BOT READY"));
+// ===== START SERVER =====
+app.listen(3000, () => console.log("✅ HR BOT (MYSQL) READY"));
