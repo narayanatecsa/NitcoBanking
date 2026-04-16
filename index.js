@@ -33,20 +33,17 @@ async function getUser(phone) {
   try {
     let clean = phone.replace(/\D/g, "");
 
-    console.log("Incoming:", phone);
-    console.log("Clean:", clean);
-
-    // Match last 10 digits (BEST SOLUTION)
     const last10 = clean.slice(-10);
+
+    console.log("Incoming:", phone);
+    console.log("Last10:", last10);
 
     const [rows] = await db.execute(
       `SELECT * FROM employees 
-       WHERE RIGHT(mobile, 10) = ? 
-       AND status='Active'`,
+       WHERE RIGHT(mobile, 10) = ?`,
       [last10]
     );
 
-    console.log("Searching last10:", last10);
     console.log("Matched:", rows);
 
     return rows[0] || null;
@@ -56,7 +53,6 @@ async function getUser(phone) {
     return null;
   }
 }
-
 // ================== ✅ GET MANAGER BY NAME ==================
 async function getManagerByName(name) {
   try {
