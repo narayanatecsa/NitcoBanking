@@ -28,23 +28,25 @@ const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 
 // ================== ✅ GET USER (FIXED MOBILE) ==================
+
 async function getUser(phone) {
   try {
     let clean = phone.replace(/\D/g, "");
 
-    // Generate both formats
-    let without91 = clean.startsWith("91") ? clean.substring(2) : clean;
-    let with91 = clean.startsWith("91") ? clean : "91" + clean;
-
     console.log("Incoming:", phone);
-    console.log("Trying:", without91, with91);
+    console.log("Clean:", clean);
+
+    // Match last 10 digits (BEST SOLUTION)
+    const last10 = clean.slice(-10);
 
     const [rows] = await db.execute(
       `SELECT * FROM employees 
-       WHERE mobile = ? OR mobile = ?`,
-      [without91, with91]
+       WHERE RIGHT(mobile, 10) = ? 
+       AND status='Active'`,
+      [last10]
     );
 
+    console.log("Searching last10:", last10);
     console.log("Matched:", rows);
 
     return rows[0] || null;
@@ -54,6 +56,7 @@ async function getUser(phone) {
     return null;
   }
 }
+
 // ================== ✅ GET MANAGER BY NAME ==================
 async function getManagerByName(name) {
   try {
