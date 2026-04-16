@@ -31,19 +31,15 @@ const delay = (ms) => new Promise(r => setTimeout(r, ms));
 // ================== ✅ GET USER (FIXED MOBILE ISSUE) ==================
 async function getUser(phone) {
   try {
-    let clean = phone.replace(/\D/g, "");
-
-    let alt = clean;
-    if (clean.startsWith("91")) {
-      alt = clean.substring(2);
-    } else {
-      alt = "91" + clean;
-    }
+    const clean = phone.replace(/\D/g, "");
 
     const [rows] = await db.execute(
-      "SELECT * FROM employees WHERE (mobile = ? OR mobile = ?) AND status='Active'",
-      [clean, alt]
+      "SELECT * FROM employees WHERE mobile = ? AND status='Active'",
+      [clean]
     );
+
+    console.log("Searching:", clean);
+    console.log("Result:", rows);
 
     return rows[0] || null;
 
@@ -52,7 +48,6 @@ async function getUser(phone) {
     return null;
   }
 }
-
 
 // ================== ✅ GET MANAGER ==================
 async function getManager(manager_id) {
