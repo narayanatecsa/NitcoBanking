@@ -13,15 +13,14 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
-// ✅ MYSQL CONNECTION
+// ================== MYSQL ==================
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  connectionLimit: 10
 });
 
 const userState = new Map();
@@ -29,37 +28,48 @@ const leaveDB = new Map();
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-
-// ================== ✅ GET USER (FIXED MOBILE) ==================
+// ================== GET USER ==================
 async function getUser(phone) {
   try {
-    const [rows] = await db.execute("SELECT * FROM employees LIMIT 1");
-    console.log("TEST QUERY:", rows);
+    let clean = phone.replace(/\D/g, "");
+    let last10 = clean.slice(-10);
+
+    const [rows] = await db.execute(
+      `SELECT * FROM employees 
+       WHERE RIGHT(mobile,10)=? 
+       AND status='Active'`,
+      [last10]
+    );
+
+    console.log("User match:", rows);
 
     return rows[0] || null;
 
   } catch (err) {
-    console.log("DB FULL ERROR:", err);
+    console.log("DB ERROR:", err);
     return null;
   }
 }
-// ================== ✅ GET MANAGER BY NAME ==================
-async function getManagerByName(name) {
+
+// ================== GET MANAGER ==================
+async function getManagerById(id) {
   try {
     const [rows] = await db.execute(
-      "SELECT * FROM employees WHERE LOWER(name) = LOWER(?)",
-      [name]
+      "SELECT * FROM employees WHERE emp_id=? AND status='Active'",
+      [id]
     );
+
+    console.log("Manager:", rows);
 
     return rows[0] || null;
 
-  } catch (e) {
+  } catch (err) {
+    console.log("Manager error:", err);
     return null;
   }
 }
 
-
-// ===== VERIFY =====
+// ================== VERIFY ==================
 app.get("/webhook", (req, res) => {
   if (
     req.query["hub.mode"] === "subscribe" &&
@@ -70,8 +80,7 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
-
-// ===== WEBHOOK =====
+// ================== WEBHOOK ==================
 app.post("/webhook", async (req, res) => {
   try {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
@@ -87,12 +96,11 @@ app.post("/webhook", async (req, res) => {
 
     console.log("Incoming:", from);
 
-    // Prevent duplicate messages
+    // Prevent duplicate
     if (msg.id) {
       if (userState.has(msg.id)) return res.sendStatus(200);
       userState.set(msg.id, true);
     }
-
 
     // ================== LEAVE FLOW ==================
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
@@ -102,11 +110,17 @@ app.post("/webhook", async (req, res) => {
       const user = await getUser(from);
       if (!user) return res.sendStatus(200);
 
-      const manager = await getManagerByName(user.reportee);
+      const manager = await getManagerById(user.manager_id);
 
       if (!manager) {
         await sendText(pid, from, "❌ Manager not found");
         return res.sendStatus(200);
+      }
+
+      // Fix mobile format
+      let managerPhone = manager.mobile.replace(/\D/g, "");
+      if (!managerPhone.startsWith("91")) {
+        managerPhone = "91" + managerPhone;
       }
 
       const leaveId = "L" + Date.now();
@@ -115,7 +129,7 @@ app.post("/webhook", async (req, res) => {
         id: leaveId,
         empName: user.name,
         empPhone: from,
-        managerPhone: manager.mobile,
+        managerPhone: managerPhone,
         fromDate: data.from_date,
         toDate: data.to_date,
         reason: data.reason,
@@ -129,7 +143,7 @@ app.post("/webhook", async (req, res) => {
 ID: ${leaveId}
 Status: PENDING`);
 
-      await sendButtons(pid, manager.mobile,
+      await sendButtons(pid, managerPhone,
 `📢 Leave Request
 
 Employee: ${leave.empName}
@@ -144,7 +158,6 @@ ID: ${leave.id}`,
 
       return res.sendStatus(200);
     }
-
 
     // ================== TEXT ==================
     if (msg.type === "text") {
@@ -183,12 +196,9 @@ Please choose a service below.`);
       }
     }
 
-
-    // ================== BUTTON HANDLER ==================
+    // ================== BUTTONS ==================
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
-
-      // (keep your existing logic unchanged)
 
       if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
@@ -214,8 +224,7 @@ Please choose a service below.`);
   }
 });
 
-
-// ===== SEND FUNCTIONS =====
+// ================== SEND ==================
 async function sendText(pid, to, body) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
     messaging_product: "whatsapp",
@@ -237,8 +246,7 @@ async function sendImage(pid, to, url) {
   });
 }
 
-
-// ===== FLOW =====
+// ================== FLOW ==================
 async function sendFlow(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
     messaging_product: "whatsapp",
@@ -261,8 +269,7 @@ async function sendFlow(pid, to) {
   });
 }
 
-
-// ===== BUTTON UTILS =====
+// ================== BUTTON ==================
 function btn(id, title) {
   return { type: "reply", reply: { id, title } };
 }
@@ -282,11 +289,10 @@ async function sendButtons(pid, to, text, buttons) {
   });
 }
 
-
-// ===== MENUS =====
+// ================== MENUS ==================
 async function menuFirst(pid, to) {
   return sendButtons(pid, to,
-` *Main Services*`,
+`*Main Services*`,
   [
     btn("LEAVE_MENU", "Leave & Attendance"),
     btn("CLAIM", "Claims"),
@@ -303,12 +309,9 @@ async function menuSecond(pid, to) {
   ]);
 }
 
-
-// ===== LEAVE MENU =====
 async function menuLeave(pid, to) {
-
   await sendButtons(pid, to,
-` *Leave & Attendance*
+`*Leave & Attendance*
 
 Select an action:`,
   [
