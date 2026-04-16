@@ -28,11 +28,9 @@ const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 
 // ================== ✅ GET USER (FIXED MOBILE) ==================
-
 async function getUser(phone) {
   try {
     let clean = phone.replace(/\D/g, "");
-
     const last10 = clean.slice(-10);
 
     console.log("Incoming:", phone);
@@ -40,8 +38,9 @@ async function getUser(phone) {
 
     const [rows] = await db.execute(
       `SELECT * FROM employees 
-       WHERE RIGHT(mobile, 10) = ?`,
-      [last10]
+       WHERE mobile LIKE ? 
+       AND status='Active'`,
+      [`%${last10}`]
     );
 
     console.log("Matched:", rows);
@@ -49,7 +48,7 @@ async function getUser(phone) {
     return rows[0] || null;
 
   } catch (err) {
-    console.log("DB error:", err.message);
+    console.log("DB FULL ERROR:", err); // 👈 important
     return null;
   }
 }
