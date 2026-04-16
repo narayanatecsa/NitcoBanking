@@ -14,29 +14,35 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
-// ===== MYSQL CONNECTION =====
+// ===== MYSQL =====
 const db = mysql.createPool({
-  host: "localhost",
-  user: "psrnlnarayana_poojalist",
-  password: "5ucce55Ex@narayana",
-  database: "psrnlnarayana_HRPlace"
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME
 });
 
-// ===== MEMORY =====
 const userState = new Map();
 const leaveDB = new Map();
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 
-// ================== ✅ GET USER FROM DB ==================
+// ================== ✅ GET USER (FIXED MOBILE ISSUE) ==================
 async function getUser(phone) {
   try {
-    const clean = phone.replace(/\D/g, "");
+    let clean = phone.replace(/\D/g, "");
+
+    let alt = clean;
+    if (clean.startsWith("91")) {
+      alt = clean.substring(2);
+    } else {
+      alt = "91" + clean;
+    }
 
     const [rows] = await db.execute(
-      "SELECT * FROM employees WHERE mobile = ? AND status = 'Active'",
-      [clean]
+      "SELECT * FROM employees WHERE (mobile = ? OR mobile = ?) AND status='Active'",
+      [clean, alt]
     );
 
     return rows[0] || null;
@@ -49,16 +55,14 @@ async function getUser(phone) {
 
 
 // ================== ✅ GET MANAGER ==================
-async function getManagerById(manager_id) {
+async function getManager(manager_id) {
   try {
     const [rows] = await db.execute(
       "SELECT * FROM employees WHERE emp_id = ?",
       [manager_id]
     );
-
     return rows[0] || null;
-
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -76,7 +80,7 @@ app.get("/webhook", (req, res) => {
 });
 
 
-// ================== WEBHOOK ==================
+// ===== WEBHOOK =====
 app.post("/webhook", async (req, res) => {
   try {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
@@ -87,6 +91,52 @@ app.post("/webhook", async (req, res) => {
 
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
+
+    console.log("Incoming:", from);
+
+    // ================== LEAVE FLOW ==================
+    if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
+
+      const data = msg.interactive.nfm_reply.response_json;
+      const user = await getUser(from);
+
+      if (!user) return res.sendStatus(200);
+
+      const manager = await getManager(user.manager_id);
+
+      if (!manager) {
+        await sendText(pid, from, "❌ Manager not found");
+        return res.sendStatus(200);
+      }
+
+      const leaveId = "L" + Date.now();
+
+      // ✅ SAVE IN DB
+      await db.execute(
+        `INSERT INTO leaves (emp_id, from_date, to_date, reason, status)
+         VALUES (?, ?, ?, ?, 'Pending')`,
+        [user.emp_id, data.from_date, data.to_date, data.reason]
+      );
+
+      await sendText(pid, from,
+`✅ Leave Applied
+Status: Pending`);
+
+      await sendButtons(pid, manager.mobile,
+`📢 Leave Request
+
+Employee: ${user.name}
+From: ${data.from_date}
+To: ${data.to_date}
+Reason: ${data.reason}`,
+[
+        btn(`APPROVE_LEAVE_${user.emp_id}`, "Approve"),
+        btn(`REJECT_LEAVE_${user.emp_id}`, "Reject")
+      ]);
+
+      return res.sendStatus(200);
+    }
+
 
     // ================== TEXT ==================
     if (msg.type === "text") {
@@ -112,6 +162,8 @@ Welcome to HRPlace 👋`);
         await delay(500);
 
         await menuFirst(pid, from);
+        await delay(500);
+        await menuSecond(pid, from);
 
         return res.sendStatus(200);
       }
@@ -122,50 +174,37 @@ Welcome to HRPlace 👋`);
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
-      // ===== ATTENDANCE MARK =====
-      if (id === "MARK_ATTENDANCE") {
+      // ===== ATTENDANCE =====
+      if (id === "ATTENDANCE") {
 
         const user = await getUser(from);
 
-        await db.execute(
-          `INSERT INTO attendance (emp_id, date, check_in, status, approval_status)
-           VALUES (?, CURDATE(), NOW(), 'Present', 'Pending')`,
+        const [rows] = await db.execute(
+          `SELECT date, status FROM attendance WHERE emp_id = ? ORDER BY date DESC LIMIT 5`,
           [user.emp_id]
         );
 
-        // Get Manager
-        const manager = await getManagerById(user.manager_id);
+        let text = "📅 Recent Attendance:\n\n";
 
-        await sendText(pid, from, "✅ Attendance Marked (Pending Approval)");
+        rows.forEach(r => {
+          text += `${r.date} - ${r.status}\n`;
+        });
 
-        // Send to Manager
-        if (manager) {
-          await sendButtons(pid, manager.mobile,
-`📢 Attendance Approval
-
-Employee: ${user.name}
-Date: Today`,
-          [
-            btn(`APPROVE_ATT_${user.emp_id}`, "Approve"),
-            btn(`REJECT_ATT_${user.emp_id}`, "Reject")
-          ]);
-        }
+        await sendText(pid, from, text);
 
         return res.sendStatus(200);
       }
 
+      // ===== LEAVE APPROVAL =====
+      if (id.startsWith("APPROVE_LEAVE_") || id.startsWith("REJECT_LEAVE_")) {
 
-      // ===== APPROVAL =====
-      if (id.startsWith("APPROVE_ATT_") || id.startsWith("REJECT_ATT_")) {
-
-        const [action, emp_id] = id.split("_ATT_");
+        const [action, , emp_id] = id.split("_");
 
         const status = action === "APPROVE" ? "Approved" : "Rejected";
 
         await db.execute(
-          `UPDATE attendance 
-           SET approval_status = ? 
-           WHERE emp_id = ? AND date = CURDATE()`,
+          `UPDATE leaves SET status = ? 
+           WHERE emp_id = ? AND status='Pending'`,
           [status, emp_id]
         );
 
@@ -174,6 +213,21 @@ Date: Today`,
         return res.sendStatus(200);
       }
 
+      // ===== EXISTING =====
+      if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
+      if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
+
+      if (id === "CLAIM") return sendText(pid, from, "Claims module").then(()=>res.sendStatus(200));
+      if (id === "PAYROLL") return sendText(pid, from, "Payroll module").then(()=>res.sendStatus(200));
+
+      if (id === "POLICY") return sendText(pid, from, "Company policies").then(()=>res.sendStatus(200));
+      if (id === "CONTACT") return sendText(pid, from, "HR Contact").then(()=>res.sendStatus(200));
+
+      if (id === "BACK_MAIN") {
+        await menuFirst(pid, from);
+        await delay(500);
+        return menuSecond(pid, from).then(()=>res.sendStatus(200));
+      }
     }
 
     return res.sendStatus(200);
@@ -185,7 +239,7 @@ Date: Today`,
 });
 
 
-// ===== SEND FUNCTIONS =====
+// ===== SEND =====
 async function sendText(pid, to, body) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
     messaging_product: "whatsapp",
@@ -202,6 +256,30 @@ async function sendImage(pid, to, url) {
     to,
     type: "image",
     image: { link: url }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
+
+// ===== FLOW =====
+async function sendFlow(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      body: { text: "Apply Leave" },
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_id: FLOW_ID,
+          flow_cta: "Open"
+        }
+      }
+    }
   }, {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
@@ -229,15 +307,37 @@ async function sendButtons(pid, to, text, buttons) {
 }
 
 
-// ===== MENU =====
+// ===== MENUS =====
 async function menuFirst(pid, to) {
   return sendButtons(pid, to,
-`Main Menu`,
+`Main Services`,
   [
-    btn("MARK_ATTENDANCE", "Mark Attendance")
+    btn("LEAVE_MENU", "Leave & Attendance"),
+    btn("CLAIM", "Claims"),
+    btn("PAYROLL", "Payroll")
+  ]);
+}
+
+async function menuSecond(pid, to) {
+  return sendButtons(pid, to,
+`More options`,
+  [
+    btn("POLICY", "Policies"),
+    btn("CONTACT", "Contact HR")
+  ]);
+}
+
+async function menuLeave(pid, to) {
+
+  await sendButtons(pid, to,
+`Leave & Attendance`,
+  [
+    btn("LEAVE", "Apply Leave"),
+    btn("ATTENDANCE", "View Attendance"),
+    btn("BACK_MAIN", "Back")
   ]);
 }
 
 
-// ===== START SERVER =====
-app.listen(3000, () => console.log("✅ HR BOT (MYSQL) READY"));
+// ===== START =====
+app.listen(3000, () => console.log("✅ HR BOT MYSQL READY"));
