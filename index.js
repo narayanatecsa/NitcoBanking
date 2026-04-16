@@ -28,20 +28,21 @@ const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 
 // ================== ✅ GET USER (FIXED MOBILE) ==================
-
 async function getUser(phone) {
   try {
     let clean = phone.replace(/\D/g, "");
 
-    console.log("Incoming:", phone);
-    console.log("Clean:", clean);
+    // Generate both formats
+    let without91 = clean.startsWith("91") ? clean.substring(2) : clean;
+    let with91 = clean.startsWith("91") ? clean : "91" + clean;
 
-    const [all] = await db.execute("SELECT emp_id, name, mobile FROM employees");
-    console.log("All DB Mobiles:", all);
+    console.log("Incoming:", phone);
+    console.log("Trying:", without91, with91);
 
     const [rows] = await db.execute(
-      "SELECT * FROM employees WHERE mobile = ?",
-      [clean]
+      `SELECT * FROM employees 
+       WHERE mobile = ? OR mobile = ?`,
+      [without91, with91]
     );
 
     console.log("Matched:", rows);
