@@ -18,7 +18,10 @@ const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
-  database: process.env.DB_NAME
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
 const userState = new Map();
@@ -30,25 +33,13 @@ const delay = (ms) => new Promise(r => setTimeout(r, ms));
 // ================== ✅ GET USER (FIXED MOBILE) ==================
 async function getUser(phone) {
   try {
-    let clean = phone.replace(/\D/g, "");
-    const last10 = clean.slice(-10);
-
-    console.log("Incoming:", phone);
-    console.log("Last10:", last10);
-
-    const [rows] = await db.execute(
-      `SELECT * FROM employees 
-       WHERE mobile LIKE ? 
-       AND status='Active'`,
-      [`%${last10}`]
-    );
-
-    console.log("Matched:", rows);
+    const [rows] = await db.execute("SELECT * FROM employees LIMIT 1");
+    console.log("TEST QUERY:", rows);
 
     return rows[0] || null;
 
   } catch (err) {
-    console.log("DB FULL ERROR:", err); // 👈 important
+    console.log("DB FULL ERROR:", err);
     return null;
   }
 }
