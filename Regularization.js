@@ -1,9 +1,24 @@
-const axios = require("axios");
 const moment = require("moment-timezone");
 
-module.exports = async function handleAttendance(
-  type,
-  req,
+// TEMP STORE (shared via import from index if needed)
+const attendanceRequests = new Map();
+
+module.exports = {
+  handleCheckInRequest,
+  handleLocationSubmit,
+  handleApproval
+};
+
+// ================== STEP 1: CLICK CHECK-IN ==================
+async function handleCheckInRequest(from, sendText) {
+  attendanceRequests.set(from, { type: "checkin" });
+
+  await sendText(from, from, "📍 Please share your location to continue");
+}
+
+// ================== STEP 2: USER SEND LOCATION ==================
+async function handleLocationSubmit(
+  msg,
   pid,
   from,
   db,
@@ -13,6 +28,13 @@ module.exports = async function handleAttendance(
   sendButtons
 ) {
   try {
+    const reqData = attendanceRequests.get(from);
+
+    if (!reqData) {
+      await sendText(pid, from, "❌ Please click Check-in first");
+      return;
+    }
+
     const user = await getUser(from);
     if (!user) return;
 
@@ -22,58 +44,137 @@ module.exports = async function handleAttendance(
       return;
     }
 
+    const lat = msg.location.latitude;
+    const long = msg.location.longitude;
+
     const now = moment().tz("Asia/Kolkata");
     const date = now.format("YYYY-MM-DD");
     const datetime = now.format("YYYY-MM-DD HH:mm:ss");
 
-    const ip =
-      req.headers["x-forwarded-for"] ||
-      req.socket.remoteAddress ||
-      "Unknown";
+    const requestId = "A" + Date.now();
 
-    let location = "Unknown";
-    try {
-      const res = await axios.get(`http://ip-api.com/json/${ip}`);
-      location = `${res.data.city}, ${res.data.regionName}`;
-    } catch {}
+    // SAVE TEMP
+    attendanceRequests.set(requestId, {
+      emp_id: user.emp_id,
+      name: user.name,
+      type: reqData.type,
+      datetime,
+      date,
+      location: `${lat},${long}`,
+      phone: from
+    });
 
-    const checkIn = type === "checkin" ? datetime : null;
-    const checkOut = type === "checkout" ? datetime : null;
+    attendanceRequests.delete(from);
 
-    const [result] = await db.execute(
-      `INSERT INTO attendance 
-      (emp_id, date, check_in, check_out, status, location, network_ip, approval_status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [user.emp_id, date, checkIn, checkOut, "Present", location, ip, "Pending"]
-    );
-
-    const id = result.insertId;
-
-    await sendText(pid, from,
-`✅ ${type.toUpperCase()} SUCCESS
-
-Date: ${date}
-Time: ${datetime}
-Location: ${location}`);
-
+    // manager phone format
     let managerPhone = manager.mobile.replace(/\D/g, "");
     if (!managerPhone.startsWith("91")) managerPhone = "91" + managerPhone;
 
-    await sendButtons(pid, managerPhone,
-`📢 Attendance Request
+    await sendText(pid, from, "✅ Request sent to manager");
 
-${user.name}
-${type}
-${date}
-${datetime}
+    await sendButtons(
+      pid,
+      managerPhone,
+`📢 Attendance Approval
 
-ID: ${id}`,
-[
-      { type: "reply", reply: { id: `APPROVE_${id}`, title: "Approve" }},
-      { type: "reply", reply: { id: `REJECT_${id}`, title: "Reject" }}
-]);
+Employee: ${user.name}
+Type: ${reqData.type}
+Date: ${date}
+Time: ${datetime}
+Location: ${lat},${long}
 
-  } catch (e) {
-    console.log("ERROR:", e);
+ID: ${requestId}`,
+      [
+        { type: "reply", reply: { id: `APPROVE_${requestId}`, title: "Approve" }},
+        { type: "reply", reply: { id: `REJECT_${requestId}`, title: "Reject" }}
+      ]
+    );
+
+  } catch (err) {
+    console.log("LOCATION ERROR:", err);
   }
-};
+}
+
+// ================== STEP 3: APPROVAL ==================
+async function handleApproval(
+  id,
+  pid,
+  from,
+  db,
+  sendText,
+  getUser
+) {
+  try {
+    const isApprove = id.startsWith("APPROVE_");
+    const requestId = id.split("_")[1];
+
+    const data = attendanceRequests.get(requestId);
+
+    if (!data) {
+      await sendText(pid, from, "❌ Request expired");
+      return;
+    }
+
+    const manager = await getUser(from);
+
+    if (isApprove) {
+
+      // CHECK EXIST
+      const [rows] = await db.execute(
+        `SELECT * FROM attendance WHERE emp_id=? AND date=?`,
+        [data.emp_id, data.date]
+      );
+
+      if (data.type === "checkin") {
+
+        if (rows.length) {
+          await sendText(pid, from, "⚠ Already checked in");
+          return;
+        }
+
+        await db.execute(
+          `INSERT INTO attendance 
+          (emp_id, date, check_in, status, location, network_ip, approval_status, approved_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            data.emp_id,
+            data.date,
+            data.datetime,
+            "Present",
+            data.location,
+            "GPS",
+            "Approved",
+            manager.emp_id
+          ]
+        );
+      }
+
+      if (data.type === "checkout") {
+
+        if (!rows.length) {
+          await sendText(pid, from, "❌ No check-in found");
+          return;
+        }
+
+        await db.execute(
+          `UPDATE attendance 
+           SET check_out=?, approved_by=?, approval_status='Approved'
+           WHERE emp_id=? AND date=?`,
+          [
+            data.datetime,
+            manager.emp_id,
+            data.emp_id,
+            data.date
+          ]
+        );
+      }
+    }
+
+    attendanceRequests.delete(requestId);
+
+    await sendText(pid, from, isApprove ? "✅ Approved" : "❌ Rejected");
+
+  } catch (err) {
+    console.log("APPROVAL ERROR:", err);
+  }
+}
