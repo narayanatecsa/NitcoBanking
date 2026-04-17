@@ -1,22 +1,15 @@
 const moment = require("moment-timezone");
 
-// TEMP STORE (shared via import from index if needed)
 const attendanceRequests = new Map();
 
-module.exports = {
-  handleCheckInRequest,
-  handleLocationSubmit,
-  handleApproval
-};
+// ================= CHECK-IN CLICK =================
+async function handleCheckInRequest(from, pid, sendText, type = "checkin") {
+  attendanceRequests.set(from, { type });
 
-// ================== STEP 1: CLICK CHECK-IN ==================
-async function handleCheckInRequest(from, sendText) {
-  attendanceRequests.set(from, { type: "checkin" });
-
-  await sendText(from, from, "📍 Please share your location to continue");
+  await sendText(pid, from, "📍 Please share your location");
 }
 
-// ================== STEP 2: USER SEND LOCATION ==================
+// ================= LOCATION =================
 async function handleLocationSubmit(
   msg,
   pid,
@@ -27,111 +20,70 @@ async function handleLocationSubmit(
   sendText,
   sendButtons
 ) {
-  try {
-    const reqData = attendanceRequests.get(from);
+  const reqData = attendanceRequests.get(from);
+  if (!reqData) return;
 
-    if (!reqData) {
-      await sendText(pid, from, "❌ Please click Check-in first");
-      return;
-    }
+  const user = await getUser(from);
+  const manager = await getManagerById(user.manager_id);
 
-    const user = await getUser(from);
-    if (!user) return;
+  const lat = msg.location.latitude;
+  const long = msg.location.longitude;
 
-    const manager = await getManagerById(user.manager_id);
-    if (!manager) {
-      await sendText(pid, from, "❌ Manager not found");
-      return;
-    }
+  const now = moment().tz("Asia/Kolkata");
+  const date = now.format("YYYY-MM-DD");
+  const datetime = now.format("YYYY-MM-DD HH:mm:ss");
 
-    const lat = msg.location.latitude;
-    const long = msg.location.longitude;
+  const requestId = "A" + Date.now();
 
-    const now = moment().tz("Asia/Kolkata");
-    const date = now.format("YYYY-MM-DD");
-    const datetime = now.format("YYYY-MM-DD HH:mm:ss");
+  attendanceRequests.set(requestId, {
+    emp_id: user.emp_id,
+    name: user.name,
+    type: reqData.type,
+    date,
+    datetime,
+    location: `${lat},${long}`
+  });
 
-    const requestId = "A" + Date.now();
+  attendanceRequests.delete(from);
 
-    // SAVE TEMP
-    attendanceRequests.set(requestId, {
-      emp_id: user.emp_id,
-      name: user.name,
-      type: reqData.type,
-      datetime,
-      date,
-      location: `${lat},${long}`,
-      phone: from
-    });
+  let managerPhone = manager.mobile.replace(/\D/g, "");
+  if (!managerPhone.startsWith("91")) managerPhone = "91" + managerPhone;
 
-    attendanceRequests.delete(from);
+  await sendText(pid, from, "✅ Sent to manager");
 
-    // manager phone format
-    let managerPhone = manager.mobile.replace(/\D/g, "");
-    if (!managerPhone.startsWith("91")) managerPhone = "91" + managerPhone;
-
-    await sendText(pid, from, "✅ Request sent to manager");
-
-    await sendButtons(
-      pid,
-      managerPhone,
+  await sendButtons(pid, managerPhone,
 `📢 Attendance Approval
 
-Employee: ${user.name}
-Type: ${reqData.type}
-Date: ${date}
-Time: ${datetime}
-Location: ${lat},${long}
+${user.name}
+${reqData.type}
+${datetime}
+📍 ${lat},${long}
 
 ID: ${requestId}`,
-      [
-        { type: "reply", reply: { id: `APPROVE_${requestId}`, title: "Approve" }},
-        { type: "reply", reply: { id: `REJECT_${requestId}`, title: "Reject" }}
-      ]
-    );
-
-  } catch (err) {
-    console.log("LOCATION ERROR:", err);
-  }
+[
+    { type: "reply", reply: { id: `APPROVE_${requestId}`, title: "Approve" }},
+    { type: "reply", reply: { id: `REJECT_${requestId}`, title: "Reject" }}
+]);
 }
 
-// ================== STEP 3: APPROVAL ==================
-async function handleApproval(
-  id,
-  pid,
-  from,
-  db,
-  sendText,
-  getUser
-) {
-  try {
-    const isApprove = id.startsWith("APPROVE_");
-    const requestId = id.split("_")[1];
+// ================= APPROVAL =================
+async function handleApproval(id, pid, from, db, sendText, getUser) {
+  const approve = id.startsWith("APPROVE_");
+  const requestId = id.split("_")[1];
 
-    const data = attendanceRequests.get(requestId);
+  const data = attendanceRequests.get(requestId);
+  if (!data) return;
 
-    if (!data) {
-      await sendText(pid, from, "❌ Request expired");
-      return;
-    }
+  const manager = await getUser(from);
 
-    const manager = await getUser(from);
+  if (approve) {
+    const [rows] = await db.execute(
+      `SELECT * FROM attendance WHERE emp_id=? AND date=?`,
+      [data.emp_id, data.date]
+    );
 
-    if (isApprove) {
-
-      // CHECK EXIST
-      const [rows] = await db.execute(
-        `SELECT * FROM attendance WHERE emp_id=? AND date=?`,
-        [data.emp_id, data.date]
-      );
-
-      if (data.type === "checkin") {
-
-        if (rows.length) {
-          await sendText(pid, from, "⚠ Already checked in");
-          return;
-        }
-
+    if (data.type === "checkin") {
+      if (!rows.length) {
         await db.execute(
           `INSERT INTO attendance 
           (emp_id, date, check_in, status, location, network_ip, approval_status, approved_by)
@@ -148,14 +100,10 @@ async function handleApproval(
           ]
         );
       }
+    }
 
-      if (data.type === "checkout") {
-
-        if (!rows.length) {
-          await sendText(pid, from, "❌ No check-in found");
-          return;
-        }
-
+    if (data.type === "checkout") {
+      if (rows.length) {
         await db.execute(
           `UPDATE attendance 
            SET check_out=?, approved_by=?, approval_status='Approved'
@@ -169,12 +117,15 @@ async function handleApproval(
         );
       }
     }
-
-    attendanceRequests.delete(requestId);
-
-    await sendText(pid, from, isApprove ? "✅ Approved" : "❌ Rejected");
-
-  } catch (err) {
-    console.log("APPROVAL ERROR:", err);
   }
+
+  attendanceRequests.delete(requestId);
+
+  await sendText(pid, from, approve ? "✅ Approved" : "❌ Rejected");
 }
+
+module.exports = {
+  handleCheckInRequest,
+  handleLocationSubmit,
+  handleApproval
+};
