@@ -22,10 +22,9 @@ const db = mysql.createPool({
 
 const userState = new Map();
 const leaveDB = new Map();
-
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-// ✅ IMPORT REGULARIZATION
+// ✅ REGULARIZATION IMPORT
 const {
   handleCheckInRequest,
   handleLocationSubmit,
@@ -131,7 +130,7 @@ ID: ${leaveId}`,
         await sendImage(pid, from, LOGO);
         await delay(500);
 
-        await sendText(pid, from, `Hello ${user.name}`);
+        await sendText(pid, from, `Hello ${user.name} 👋`);
         await menuFirst(pid, from);
 
         return res.sendStatus(200);
@@ -145,17 +144,16 @@ ID: ${leaveId}`,
       if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
 
-      // ✅ REGULARIZE
+      // REGULARIZE
       if (id === "REGULARIZE") {
         return sendButtons(pid, from,
 `Attendance`,
 [
           btn("CHECKIN", "Check-in"),
           btn("CHECKOUT", "Check-out")
-]).then(()=>res.sendStatus(200));
+        ]).then(()=>res.sendStatus(200));
       }
 
-      // ✅ CHECKIN
       if (id === "CHECKIN") {
         await handleCheckInRequest(from, pid, sendText, "checkin");
         return res.sendStatus(200);
@@ -166,16 +164,7 @@ ID: ${leaveId}`,
         return res.sendStatus(200);
       }
 
-      // ✅ LOCATION
-      if (msg.type === "location") {
-        await handleLocationSubmit(
-          msg, pid, from, db, getUser, getManagerByName,
-          sendText, sendButtons
-        );
-        return res.sendStatus(200);
-      }
-
-      // ✅ APPROVAL (Attendance + Leave)
+      // APPROVAL
       if (id.startsWith("APPROVE_") || id.startsWith("REJECT_")) {
 
         if (id.includes("LEAVE")) {
@@ -188,7 +177,7 @@ ID: ${leaveId}`,
       }
     }
 
-    // ✅ LOCATION OUTSIDE BUTTON
+    // LOCATION
     if (msg.type === "location") {
       await handleLocationSubmit(
         msg, pid, from, db, getUser, getManagerByName,
@@ -276,10 +265,22 @@ async function menuFirst(pid, to) {
 }
 
 async function menuLeave(pid, to) {
-  return sendButtons(pid, to, "Options", [
+  await sendButtons(pid, to,
+"Leave & Attendance",
+[
     btn("LEAVE", "Apply Leave"),
+    btn("BALANCE", "Leave Balance"),
+    btn("EDIT", "Edit/Cancel")
+  ]);
+
+  await delay(500);
+
+  return sendButtons(pid, to,
+"More options",
+[
+    btn("ATTENDANCE", "View Attendance"),
     btn("REGULARIZE", "Regularize")
   ]);
 }
 
-app.listen(3000, () => console.log("✅ FULL BOT READY"));
+app.listen(3000, () => console.log("✅ BOT READY"));
