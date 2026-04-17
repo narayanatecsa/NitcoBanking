@@ -9,7 +9,6 @@ app.use(bodyParser.json());
 
 const TOKEN = process.env.TOKEN;
 const VERIFY = process.env.MYTOKEN;
-const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
@@ -18,48 +17,39 @@ const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10
+  database: process.env.DB_NAME
 });
 
 const userState = new Map();
-const leaveDB = new Map();
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+// ✅ IMPORT NEW FUNCTIONS
+const {
+  handleCheckInRequest,
+  handleLocationSubmit,
+  handleApproval
+} = require("./Regularization");
 
 // ================== GET USER ==================
 async function getUser(phone) {
-  try {
-    let clean = phone.replace(/\D/g, "");
-    let last10 = clean.slice(-10);
+  let clean = phone.replace(/\D/g, "");
+  let last10 = clean.slice(-10);
 
-    const [rows] = await db.execute(
-      `SELECT * FROM employees 
-       WHERE RIGHT(mobile,10)=? 
-       AND status='Active'`,
-      [last10]
-    );
+  const [rows] = await db.execute(
+    `SELECT * FROM employees WHERE RIGHT(mobile,10)=? AND status='Active'`,
+    [last10]
+  );
 
-    return rows[0] || null;
-
-  } catch (err) {
-    console.log("DB ERROR:", err);
-    return null;
-  }
+  return rows[0] || null;
 }
 
 // ================== GET MANAGER ==================
 async function getManagerById(id) {
-  try {
-    const [rows] = await db.execute(
-      "SELECT * FROM employees WHERE emp_id=? AND status='Active'",
-      [id]
-    );
-    return rows[0] || null;
-  } catch (err) {
-    console.log("Manager error:", err);
-    return null;
-  }
+  const [rows] = await db.execute(
+    "SELECT * FROM employees WHERE emp_id=? AND status='Active'",
+    [id]
+  );
+  return rows[0] || null;
 }
 
 // ================== VERIFY ==================
@@ -79,30 +69,23 @@ app.post("/webhook", async (req, res) => {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
 
-    if (change.statuses) return res.sendStatus(200);
-
     const msg = change.messages?.[0];
     if (!msg) return res.sendStatus(200);
 
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
-    // Prevent duplicate
-    if (msg.id) {
-      if (userState.has(msg.id)) return res.sendStatus(200);
-      userState.set(msg.id, true);
-    }
+    if (msg.id && userState.has(msg.id)) return res.sendStatus(200);
+    userState.set(msg.id, true);
 
-    // ================== TEXT ==================
+    // ================= TEXT =================
     if (msg.type === "text") {
-      const text = msg.text.body.toLowerCase().trim();
+      const text = msg.text.body.toLowerCase();
 
       if (text === "hi" || text === "hello") {
-
         const user = await getUser(from);
-
         if (!user) {
-          await sendText(pid, from, "❌ You are not registered.");
+          await sendText(pid, from, "❌ Not registered");
           return res.sendStatus(200);
         }
 
@@ -111,85 +94,81 @@ app.post("/webhook", async (req, res) => {
 
         await sendText(pid, from, `Hello ${user.name} 👋`);
         await menuFirst(pid, from);
-        await delay(500);
-        await menuSecond(pid, from);
 
         return res.sendStatus(200);
       }
     }
 
-    // ================== BUTTONS ==================
+    // ================= BUTTON =================
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
-      if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
-      if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
+      if (id === "LEAVE_MENU") {
+        return menuLeave(pid, from).then(()=>res.sendStatus(200));
+      }
 
-      // ✅ ================= REGULARIZATION =================
+      // ✅ REGULARIZE
       if (id === "REGULARIZE") {
         return sendButtons(pid, from,
-`*Attendance Regularization*
+`*Attendance*
 
-Choose action:`,
+Choose:`,
         [
           btn("CHECKIN", "Check-in"),
-          btn("CHECKOUT", "Check-out"),
-          btn("BACK_MAIN", "⬅ Back")
+          btn("CHECKOUT", "Check-out")
         ]).then(()=>res.sendStatus(200));
       }
 
-      if (id === "CHECKIN" || id === "CHECKOUT") {
-        const handleAttendance = require("./Regularization");
+      // ✅ CHECK-IN
+      if (id === "CHECKIN") {
+        await handleCheckInRequest(from, pid, sendText);
+        return res.sendStatus(200);
+      }
 
-        await handleAttendance(
-          id === "CHECKIN" ? "checkin" : "checkout",
-          req,
+      // ✅ CHECK-OUT (same flow)
+      if (id === "CHECKOUT") {
+        await handleCheckInRequest(from, pid, sendText, "checkout");
+        return res.sendStatus(200);
+      }
+
+      // ✅ APPROVAL
+      if (id.startsWith("APPROVE_") || id.startsWith("REJECT_")) {
+        await handleApproval(
+          id,
           pid,
           from,
           db,
-          getUser,
-          getManagerById,
           sendText,
-          sendButtons
+          getUser
         );
-
         return res.sendStatus(200);
       }
+    }
 
-      // ================= APPROVAL =================
-      if (id.startsWith("APPROVE_") || id.startsWith("REJECT_")) {
-        const status = id.startsWith("APPROVE_") ? "Approved" : "Rejected";
-        const attendanceId = id.split("_")[1];
-
-        const manager = await getUser(from);
-
-        await db.execute(
-          `UPDATE attendance 
-           SET approval_status=?, approved_by=? 
-           WHERE attendance_id=?`,
-          [status, manager.emp_id, attendanceId]
-        );
-
-        await sendText(pid, from, `✅ ${status}`);
-        return res.sendStatus(200);
-      }
-
-      if (id === "BACK_MAIN") {
-        await menuFirst(pid, from);
-        await delay(500);
-        return menuSecond(pid, from).then(()=>res.sendStatus(200));
-      }
+    // ✅ LOCATION MESSAGE
+    if (msg.type === "location") {
+      await handleLocationSubmit(
+        msg,
+        pid,
+        from,
+        db,
+        getUser,
+        getManagerById,
+        sendText,
+        sendButtons
+      );
+      return res.sendStatus(200);
     }
 
     return res.sendStatus(200);
 
   } catch (e) {
-    console.log("ERROR:", e);
+    console.log(e);
     return res.sendStatus(200);
   }
 });
 
-// ================== SEND ==================
+// ================= SEND =================
 async function sendText(pid, to, body) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
     messaging_product: "whatsapp",
@@ -230,42 +209,17 @@ async function sendButtons(pid, to, text, buttons) {
   });
 }
 
-// ================== MENUS ==================
+// ================= MENU =================
 async function menuFirst(pid, to) {
-  return sendButtons(pid, to, "*Main Services*", [
-    btn("LEAVE_MENU", "Leave & Attendance"),
-    btn("CLAIM", "Claims"),
-    btn("PAYROLL", "Payroll")
-  ]);
-}
-
-async function menuSecond(pid, to) {
-  return sendButtons(pid, to, "More options:", [
-    btn("POLICY", "Policies"),
-    btn("CONTACT", "Contact HR")
+  return sendButtons(pid, to, "*Main Menu*", [
+    btn("LEAVE_MENU", "Leave & Attendance")
   ]);
 }
 
 async function menuLeave(pid, to) {
-  await sendButtons(pid, to,
-`*Leave & Attendance*
-
-Select an action:`,
-  [
-    btn("LEAVE", "Apply Leave"),
-    btn("BALANCE", "Leave Balance"),
-    btn("EDIT", "Edit/Cancel")
-  ]);
-
-  await delay(500);
-
-  return sendButtons(pid, to,
-`More actions:`,
-  [
-    btn("ATTENDANCE", "View Attendance"),
-    btn("REGULARIZE", "Regularize"),
-    btn("BACK_MAIN", "⬅ Back")
+  return sendButtons(pid, to, "*Attendance*", [
+    btn("REGULARIZE", "Regularize")
   ]);
 }
 
-app.listen(3000, () => console.log("✅ HR BOT READY"));
+app.listen(3000, () => console.log("✅ BOT RUNNING"));
