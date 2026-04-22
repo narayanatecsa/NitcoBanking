@@ -129,7 +129,10 @@ Please choose a service below.`);
   return res.sendStatus(200);
 }
      
-      if (id === "EDIT") return sendText(pid, from, " Edit or cancel leave").then(()=>res.sendStatus(200));
+      if (id === "EDIT") {
+  await sendEditLeaveLink(pid, from);
+  return res.sendStatus(200);
+}
 
       if (id === "ATTENDANCE") return sendText(pid, from, " Attendance details").then(()=>res.sendStatus(200));
       if (id === "REGULARIZE") return sendText(pid, from, " Regularize attendance").then(()=>res.sendStatus(200));
@@ -150,6 +153,21 @@ Please choose a service below.`);
 });
 
 // ===== SEND FUNCTIONS =====
+
+// ===== TEMPLATE: EDIT LEAVE LINK =====
+async function sendEditLeaveLink(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "editleave",   // ✅ your template name
+      language: { code: "en" }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
 
 // ===== TEMPLATE: LEAVE BALANCE LINK =====
 async function sendLeaveBalanceLink(pid, to) {
