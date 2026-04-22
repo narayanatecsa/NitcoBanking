@@ -124,21 +124,11 @@ Please choose a service below.`);
       if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
 
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
-
       if (id === "BALANCE") {
-  await sendText(pid, from,
-` *Leave Balance*
-
-You can view your balance on the *Dashboard*
-or under:
-
- *Leave Management > Leave Bank*
-
-🔗 View here:
-https://hrplace.com.my/nitcosolutions/leave_bank`);
-  
+  await sendLeaveBalanceLink(pid, from);
   return res.sendStatus(200);
 }
+     
       if (id === "EDIT") return sendText(pid, from, " Edit or cancel leave").then(()=>res.sendStatus(200));
 
       if (id === "ATTENDANCE") return sendText(pid, from, " Attendance details").then(()=>res.sendStatus(200));
@@ -160,6 +150,24 @@ https://hrplace.com.my/nitcosolutions/leave_bank`);
 });
 
 // ===== SEND FUNCTIONS =====
+
+// ===== TEMPLATE: LEAVE BALANCE LINK =====
+async function sendLeaveBalanceLink(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "leave_",   // ✅ your template name
+      language: { code: "en" }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
+
+
 async function sendText(pid, to, body) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
     messaging_product: "whatsapp",
