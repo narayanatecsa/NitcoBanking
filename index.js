@@ -134,7 +134,10 @@ Please choose a service below.`);
   return res.sendStatus(200);
 }
 
-      if (id === "ATTENDANCE") return sendText(pid, from, " Attendance details").then(()=>res.sendStatus(200));
+      if (id === "ATTENDANCE") {
+  await sendAttendanceLink(pid, from);
+  return res.sendStatus(200);
+}
       if (id === "REGULARIZE") return sendText(pid, from, " Regularize attendance").then(()=>res.sendStatus(200));
 
       if (id === "BACK_MAIN") {
@@ -153,6 +156,21 @@ Please choose a service below.`);
 });
 
 // ===== SEND FUNCTIONS =====
+
+// ===== TEMPLATE: VIEW ATTENDANCE LINK =====
+async function sendAttendanceLink(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "view_attendance",   // ✅ your template name
+      language: { code: "en" }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
 
 // ===== TEMPLATE: EDIT LEAVE LINK =====
 async function sendEditLeaveLink(pid, to) {
