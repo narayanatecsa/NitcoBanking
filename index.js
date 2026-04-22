@@ -125,7 +125,19 @@ Please choose a service below.`);
 
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
 
-      if (id === "BALANCE") return sendText(pid, from, " Leave balance details").then(()=>res.sendStatus(200));
+      if (id === "BALANCE") {
+  await sendText(pid, from,
+` *Leave Balance*
+
+You can view your balance on the *Dashboard*
+or under:
+
+ *Leave Management > Leave Bank*
+
+Click below option in system to check detailed balance.`);
+  
+  return res.sendStatus(200);
+}
       if (id === "EDIT") return sendText(pid, from, " Edit or cancel leave").then(()=>res.sendStatus(200));
 
       if (id === "ATTENDANCE") return sendText(pid, from, " Attendance details").then(()=>res.sendStatus(200));
