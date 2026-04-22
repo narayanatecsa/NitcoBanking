@@ -13,6 +13,32 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
+// ================= AI CONFIG =================
+const AI_URL = "http://72.61.171.201:8000/v1/generate";
+const AI_KEY = process.env.AI_KEY || "sk_live_test123";
+
+async function askAI(prompt) {
+  try {
+    const res = await axios.post(
+      AI_URL,
+      { prompt },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": AI_KEY
+        }
+      }
+    );
+
+    return res.data.response;
+
+  } catch (err) {
+    console.log("AI ERROR:", err.response?.data || err.message);
+    return "⚠️ AI service temporarily unavailable.";
+  }
+}
+
+// ================= DB =================
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -125,10 +151,11 @@ ID: ${leaveId}`,
 
     // ================= TEXT =================
     if (msg.type === "text") {
-      const text = msg.text.body.toLowerCase();
+      const user = await getUser(from);
+      const text = msg.text.body;
 
-      if (text === "hi") {
-        const user = await getUser(from);
+      // GREETING
+      if (text.toLowerCase() === "hi") {
 
         await sendImage(pid, from, LOGO);
         await delay(500);
@@ -140,6 +167,25 @@ ID: ${leaveId}`,
 
         return res.sendStatus(200);
       }
+
+      // ================= AI FALLBACK =================
+      const prompt = `
+You are an HR assistant.
+
+Employee Name: ${user?.name || "Employee"}
+
+Answer clearly and professionally.
+Keep answers short.
+
+User Question:
+${text}
+`;
+
+      const aiReply = await askAI(prompt);
+
+      await sendText(pid, from, aiReply);
+
+      return res.sendStatus(200);
     }
 
     // ================= BUTTON =================
@@ -148,6 +194,18 @@ ID: ${leaveId}`,
 
       if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
+
+      // POLICY → AI
+      if (id === "POLICY") {
+        const aiReply = await askAI(`
+Explain company policies briefly:
+- Leave
+- Attendance
+- Work timings
+`);
+        await sendText(pid, from, aiReply);
+        return res.sendStatus(200);
+      }
 
       // REGULARIZE MENU
       if (id === "REGULARIZE") {
@@ -354,4 +412,4 @@ async function menuLeave(pid, to) {
   ]);
 }
 
-app.listen(3000, () => console.log("READY"));
+app.listen(3000, () => console.log("🚀 HR Bot + AI READY"));
