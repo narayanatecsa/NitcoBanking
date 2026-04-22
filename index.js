@@ -1,7 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
-const mysql = require("mysql2/promise");
 require("dotenv").config();
 
 const app = express();
@@ -13,68 +12,32 @@ const FLOW_ID = process.env.FLOW_ID;
 
 const LOGO = "https://poojalist.com/Images/NewHRplace.png";
 
-// ================= AI CONFIG =================
-const AI_URL = "http://72.61.171.201:8000/v1/generate";
-const AI_KEY = process.env.AI_KEY || "sk_live_test123";
-
-async function askAI(prompt) {
-  try {
-    const res = await axios.post(
-      AI_URL,
-      { prompt },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": AI_KEY
-        }
-      }
-    );
-
-    return res.data.response;
-
-  } catch (err) {
-    console.log("AI ERROR:", err.response?.data || err.message);
-    return "⚠️ AI service temporarily unavailable.";
-  }
-}
-
-// ================= DB =================
-const db = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME
-});
+const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
 
 const userState = new Map();
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-// TEMP STORE
-global.leaveStore = {};
-global.attendanceStore = {};
-
-// ================= USER =================
+// ===== CHECK USER =====
 async function getUser(phone) {
-  let clean = phone.replace(/\D/g, "");
-  let last10 = clean.slice(-10);
+  try {
+    const res = await axios.get(SHEET_API);
+    const users = res.data;
 
-  const [rows] = await db.execute(
-    `SELECT * FROM employees WHERE RIGHT(mobile,10)=? AND status='Active'`,
-    [last10]
-  );
+    const clean = phone.replace(/\D/g, "");
 
-  return rows[0] || null;
+    const user = users.find(u =>
+      String(u.Mobile).replace(/\D/g, "") === clean
+    );
+
+    return user && user.Status === "Active" ? user : null;
+
+  } catch (err) {
+    console.log("Sheet error:", err.message);
+    return null;
+  }
 }
 
-async function getManagerById(id) {
-  const [rows] = await db.execute(
-    "SELECT * FROM employees WHERE emp_id=?",
-    [id]
-  );
-  return rows[0] || null;
-}
-
-// ================= VERIFY =================
+// ===== VERIFY =====
 app.get("/webhook", (req, res) => {
   if (
     req.query["hub.mode"] === "subscribe" &&
@@ -85,11 +48,13 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
-// ================= WEBHOOK =================
+// ===== WEBHOOK =====
 app.post("/webhook", async (req, res) => {
   try {
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
     if (!change) return res.sendStatus(200);
+
+    if (change.statuses) return res.sendStatus(200);
 
     const msg = change.messages?.[0];
     if (!msg) return res.sendStatus(200);
@@ -97,214 +62,78 @@ app.post("/webhook", async (req, res) => {
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
 
-    if (msg.id && userState.has(msg.id)) return res.sendStatus(200);
-    userState.set(msg.id, true);
+    // Prevent duplicate messages
+    if (msg.id) {
+      if (userState.has(msg.id)) return res.sendStatus(200);
+      userState.set(msg.id, true);
+    }
 
-    // ================= LEAVE FLOW RESPONSE =================
+    // FLOW RESPONSE
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
-
-      const data = msg.interactive.nfm_reply.response_json;
-
-      const fromDate = data.from || data.from_date;
-      const toDate = data.to || data.to_date;
-      const reason = data.reason;
-
-      const user = await getUser(from);
-      const manager = await getManagerById(user.manager_id);
-
-      const leaveId = "L" + Date.now();
-
-      global.leaveStore[leaveId] = {
-        emp_id: user.emp_id,
-        fromDate,
-        toDate,
-        reason
-      };
-
-      await sendText(pid, from,
-`✅ Leave Request Sent
-
-From: ${fromDate}
-To: ${toDate}
-Reason: ${reason}`);
-
-      let managerPhone = manager.mobile.replace(/\D/g, "");
-      if (!managerPhone.startsWith("91")) managerPhone = "91" + managerPhone;
-
-      await sendButtons(pid, managerPhone,
-`📢 Leave Approval
-
-${user.name}
-
-From: ${fromDate}
-To: ${toDate}
-Reason: ${reason}
-
-ID: ${leaveId}`,
-[
-        btn(`APPROVE_${leaveId}`, "Approve"),
-        btn(`REJECT_${leaveId}`, "Reject")
-      ]);
-
+      await sendText(pid, from, "✅ Leave applied successfully");
       return res.sendStatus(200);
     }
 
-    // ================= TEXT =================
+    // TEXT
     if (msg.type === "text") {
-      const user = await getUser(from);
-      const text = msg.text.body;
+      const text = msg.text.body.toLowerCase().trim();
 
-      // GREETING
-      if (text.toLowerCase() === "hi") {
+      if (text === "hi" || text === "hello") {
+
+        const user = await getUser(from);
+
+        if (!user) {
+          await sendText(pid, from, "❌ You are not registered. Please contact HR.");
+          return res.sendStatus(200);
+        }
+
+        const firstKey = from + "_FIRST";
 
         await sendImage(pid, from, LOGO);
-        await delay(500);
+        await delay(800);
 
-        await sendText(pid, from, `Hello ${user.name}`);
+        if (!userState.has(firstKey)) {
+          userState.set(firstKey, true);
+
+          await sendText(pid, from,
+`Hello ${user.Name}
+
+Welcome to HRPlace 👋
+Please choose a service below.`);
+          await delay(800);
+        }
+
         await menuFirst(pid, from);
-        await delay(500);
+        await delay(600);
         await menuSecond(pid, from);
 
         return res.sendStatus(200);
       }
-
-      // ================= AI FALLBACK =================
-      const prompt = `
-You are an HR assistant.
-
-Employee Name: ${user?.name || "Employee"}
-
-Answer clearly and professionally.
-Keep answers short.
-
-User Question:
-${text}
-`;
-
-      const aiReply = await askAI(prompt);
-
-      await sendText(pid, from, aiReply);
-
-      return res.sendStatus(200);
     }
 
-    // ================= BUTTON =================
+    // BUTTON HANDLER
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
       if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
+
+      if (id === "CLAIM") return sendText(pid, from, " Claims module").then(()=>res.sendStatus(200));
+      if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
+
+      if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
+      if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
+
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
 
-      // POLICY → AI
-      if (id === "POLICY") {
-        const aiReply = await askAI(`
-Explain company policies briefly:
-- Leave
-- Attendance
-- Work timings
-`);
-        await sendText(pid, from, aiReply);
-        return res.sendStatus(200);
-      }
+      if (id === "BALANCE") return sendText(pid, from, " Leave balance details").then(()=>res.sendStatus(200));
+      if (id === "EDIT") return sendText(pid, from, " Edit or cancel leave").then(()=>res.sendStatus(200));
 
-      // REGULARIZE MENU
-      if (id === "REGULARIZE") {
-        return sendButtons(pid, from,
-`Attendance`,
-[
-          btn("CHECKIN", "Check-in"),
-          btn("CHECKOUT", "Check-out"),
-          btn("BACK_MAIN", "Back")
-]).then(()=>res.sendStatus(200));
-      }
-
-      // CHECKIN / CHECKOUT
-      if (id === "CHECKIN" || id === "CHECKOUT") {
-
-        const user = await getUser(from);
-        const manager = await getManagerById(user.manager_id);
-
-        const now = new Date();
-        const date = now.toISOString().split("T")[0];
-        const time = now.toISOString().slice(0, 19).replace("T", " ");
-
-        const reqId = "A" + Date.now();
-
-        global.attendanceStore[reqId] = {
-          emp_id: user.emp_id,
-          date,
-          check_in: id === "CHECKIN" ? time : null,
-          check_out: id === "CHECKOUT" ? time : null
-        };
-
-        await sendText(pid, from, "✅ Request sent to manager");
-
-        let managerPhone = manager.mobile.replace(/\D/g, "");
-        if (!managerPhone.startsWith("91")) managerPhone = "91" + managerPhone;
-
-        await sendButtons(pid, managerPhone,
-`📢 Attendance Approval
-
-${user.name}
-${id}
-${date}
-${time}
-
-ID: ${reqId}`,
-[
-          btn(`APPROVE_${reqId}`, "Approve"),
-          btn(`REJECT_${reqId}`, "Reject")
-        ]);
-
-        return res.sendStatus(200);
-      }
-
-      // APPROVAL
-      if (id.startsWith("APPROVE_") || id.startsWith("REJECT_")) {
-
-        const isApprove = id.startsWith("APPROVE_");
-        const key = id.replace("APPROVE_", "").replace("REJECT_", "");
-
-        const manager = await getUser(from);
-
-        // LEAVE
-        if (key.startsWith("L")) {
-          const d = global.leaveStore[key];
-
-          if (isApprove) {
-            await db.execute(
-              `INSERT INTO leaves 
-              (emp_id, from_date, to_date, reason, status, approved_by)
-              VALUES (?, ?, ?, ?, 'Approved', ?)`,
-              [d.emp_id, d.fromDate, d.toDate, d.reason, manager.emp_id]
-            );
-          }
-
-          await sendText(pid, from, isApprove ? "Leave Approved" : "Leave Rejected");
-          return res.sendStatus(200);
-        }
-
-        // ATTENDANCE
-        if (key.startsWith("A")) {
-          const d = global.attendanceStore[key];
-
-          if (isApprove) {
-            await db.execute(
-              `INSERT INTO attendance 
-              (emp_id, date, check_in, check_out, status, approval_status)
-              VALUES (?, ?, ?, ?, 'Present', 'Approved')`,
-              [d.emp_id, d.date, d.check_in, d.check_out]
-            );
-          }
-
-          await sendText(pid, from, isApprove ? "Attendance Approved" : "Rejected");
-          return res.sendStatus(200);
-        }
-      }
+      if (id === "ATTENDANCE") return sendText(pid, from, " Attendance details").then(()=>res.sendStatus(200));
+      if (id === "REGULARIZE") return sendText(pid, from, " Regularize attendance").then(()=>res.sendStatus(200));
 
       if (id === "BACK_MAIN") {
         await menuFirst(pid, from);
-        await delay(500);
+        await delay(600);
         return menuSecond(pid, from).then(()=>res.sendStatus(200));
       }
     }
@@ -312,12 +141,12 @@ ID: ${reqId}`,
     return res.sendStatus(200);
 
   } catch (e) {
-    console.log(e);
+    console.log("ERROR:", e);
     return res.sendStatus(200);
   }
 });
 
-// ================= SEND =================
+// ===== SEND FUNCTIONS =====
 async function sendText(pid, to, body) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
     messaging_product: "whatsapp",
@@ -339,6 +168,7 @@ async function sendImage(pid, to, url) {
   });
 }
 
+// ===== FLOW =====
 async function sendFlow(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
     messaging_product: "whatsapp",
@@ -361,6 +191,7 @@ async function sendFlow(pid, to) {
   });
 }
 
+// ===== BUTTON UTILS =====
 function btn(id, title) {
   return { type: "reply", reply: { id, title } };
 }
@@ -380,9 +211,11 @@ async function sendButtons(pid, to, text, buttons) {
   });
 }
 
-// ================= MENUS =================
+// ===== MENUS =====
 async function menuFirst(pid, to) {
-  return sendButtons(pid, to, "Main Menu", [
+  return sendButtons(pid, to,
+` *Main Services*`,
+  [
     btn("LEAVE_MENU", "Leave & Attendance"),
     btn("CLAIM", "Claims"),
     btn("PAYROLL", "Payroll")
@@ -390,26 +223,36 @@ async function menuFirst(pid, to) {
 }
 
 async function menuSecond(pid, to) {
-  return sendButtons(pid, to, "More", [
+  return sendButtons(pid, to,
+`More options:`,
+  [
     btn("POLICY", "Policies"),
     btn("CONTACT", "Contact HR")
   ]);
 }
 
+// ===== LEAVE MENU (SPLIT 3 + 2) =====
 async function menuLeave(pid, to) {
-  await sendButtons(pid, to, "Leave", [
+
+  await sendButtons(pid, to,
+` *Leave & Attendance*
+
+Select an action:`,
+  [
     btn("LEAVE", "Apply Leave"),
     btn("BALANCE", "Leave Balance"),
     btn("EDIT", "Edit/Cancel")
   ]);
 
-  await delay(500);
+  await delay(600);
 
-  return sendButtons(pid, to, "More", [
+  return sendButtons(pid, to,
+`More actions:`,
+  [
     btn("ATTENDANCE", "View Attendance"),
     btn("REGULARIZE", "Regularize"),
-    btn("BACK_MAIN", "Back")
+    btn("BACK_MAIN", "⬅ Back")
   ]);
 }
 
-app.listen(3000, () => console.log("🚀 HR Bot + AI READY"));
+app.listen(3000, () => console.log("✅ HR BOT READY"));
