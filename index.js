@@ -134,7 +134,8 @@ or under:
 
  *Leave Management > Leave Bank*
 
-Click below option in system to check detailed balance.`);
+🔗 View here:
+https://hrplace.com.my/nitcosolutions/leave_bank`);
   
   return res.sendStatus(200);
 }
