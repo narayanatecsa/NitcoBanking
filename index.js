@@ -138,8 +138,10 @@ Please choose a service below.`);
   await sendAttendanceLink(pid, from);
   return res.sendStatus(200);
 }
-      if (id === "REGULARIZE") return sendText(pid, from, " Regularize attendance").then(()=>res.sendStatus(200));
-
+      if (id === "REGULARIZE") {
+  await sendRegularizeLink(pid, from);
+  return res.sendStatus(200);
+}
       if (id === "BACK_MAIN") {
         await menuFirst(pid, from);
         await delay(600);
@@ -156,6 +158,21 @@ Please choose a service below.`);
 });
 
 // ===== SEND FUNCTIONS =====
+
+// ===== TEMPLATE: REGULARIZE ATTENDANCE =====
+async function sendRegularizeLink(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "regularize_attendance",   // ✅ your template
+      language: { code: "en" }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
 
 // ===== TEMPLATE: VIEW ATTENDANCE LINK =====
 async function sendAttendanceLink(pid, to) {
