@@ -117,7 +117,7 @@ Please choose a service below.`);
 
       if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
 
-      if (id === "CLAIM") return sendText(pid, from, " Claims module").then(()=>res.sendStatus(200));
+      if (id === "CLAIM") return menuClaim(pid, from).then(()=>res.sendStatus(200));
       if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
 
       if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
@@ -328,5 +328,17 @@ Select an action:`,
     btn("BACK_MAIN", "⬅ Back")
   ]);
 }
+// ===== CLAIM MENU =====
+async function menuClaim(pid, to) {
 
+  return sendButtons(pid, to,
+`📊 *Claims Management*
+
+Choose an option:`,
+  [
+    btn("CLAIM_NEW", "Submit New Claim"),
+    btn("CLAIM_STATUS", "View Claim Status"),
+    btn("BACK_MAIN", "⬅ Back")
+  ]);
+}
 app.listen(3000, () => console.log("✅ HR BOT READY"));
