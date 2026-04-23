@@ -117,7 +117,18 @@ Please choose a service below.`);
 
       if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
 
-      //if (id === "CLAIM") return menuClaim(pid, from).then(()=>res.sendStatus(200));
+      if (id === "CLAIM") return menuClaim(pid, from).then(()=>res.sendStatus(200));
+       if (id === "CLAIM") return menuClaim(pid, from).then(()=>res.sendStatus(200));
+
+  if (id === "CLAIM_NEW") {
+    return sendClaimFlow(pid, from).then(()=>res.sendStatus(200));
+  }
+
+  if (id === "CLAIM_STATUS") {
+    return sendText(pid, from, "📄 View Claim Status: https://your-link.com")
+      .then(()=>res.sendStatus(200));
+  }
+
       if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
 
       if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
@@ -148,10 +159,6 @@ Please choose a service below.`);
         return menuSecond(pid, from).then(()=>res.sendStatus(200));
       }
     }
-if (id === "CLAIM_NEW") {
-  return sendClaimFlow(pid, from).then(()=>res.sendStatus(200));
-}
-    return res.sendStatus(200);
 
   } catch (e) {
     console.log("ERROR:", e);
