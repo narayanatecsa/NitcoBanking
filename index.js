@@ -135,6 +135,13 @@ Please choose a service below.`);
 
       if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
       if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
+      if (id === "BANK_DETAILS") {
+  return sendViewBankTemplate(pid, from).then(()=>res.sendStatus(200));
+}
+
+if (id === "BANK_UPDATE") {
+  return sendUpdateBankTemplate(pid, from).then(()=>res.sendStatus(200));
+}
 
       if (id === "LEAVE") return sendFlow(pid, from).then(()=>res.sendStatus(200));
       if (id === "BALANCE") {
@@ -169,6 +176,37 @@ Please choose a service below.`);
 });
 
 // ===== SEND FUNCTIONS =====
+
+// ===== TEMPLATE: VIEW BANK DETAILS =====
+async function sendViewBankTemplate(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "viewbank",   // ✅ your template name
+      language: { code: "en" }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
+// ===== TEMPLATE: UPDATE BANK INFO =====
+async function sendUpdateBankTemplate(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "updatebank",   // ✅ your template name
+      language: { code: "en" }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
 
 async function sendPayslipTemplate(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
