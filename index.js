@@ -117,7 +117,7 @@ Please choose a service below.`);
 
       if (id === "LEAVE_MENU") return menuLeave(pid, from).then(()=>res.sendStatus(200));
 
-      if (id === "CLAIM") return menuClaim(pid, from).then(()=>res.sendStatus(200));
+      //if (id === "CLAIM") return menuClaim(pid, from).then(()=>res.sendStatus(200));
       if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
 
       if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
