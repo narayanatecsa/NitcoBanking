@@ -128,7 +128,7 @@ Please choose a service below.`);
   return sendClaimStatusTemplate(pid, from).then(()=>res.sendStatus(200));
 }
 
-      if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
+      if (id === "PAYROLL") return menuPayroll(pid, from).then(()=>res.sendStatus(200));
 
       if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
       if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
@@ -385,4 +385,19 @@ async function sendClaimFlow(pid, to) {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
 }
+async function menuPayroll(pid, to) {
+
+  return sendButtons(pid, to,
+` *Payroll Management*
+
+Choose an option:`,
+  [
+    btn("PAYSLIP", "Download Payslip"),
+    btn("BANK_DETAILS", "View Bank Details"),
+    btn("BANK_UPDATE", "Update Bank Info"),
+    
+  ]);
+}
+
+
 app.listen(3000, () => console.log("✅ HR BOT READY"));
