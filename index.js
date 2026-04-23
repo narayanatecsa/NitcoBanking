@@ -70,7 +70,7 @@ app.post("/webhook", async (req, res) => {
 
     // FLOW RESPONSE
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
-      await sendText(pid, from, "✅ Leave applied successfully");
+      await sendText(pid, from, "✅ Submitted successfully");
       return res.sendStatus(200);
     }
 
