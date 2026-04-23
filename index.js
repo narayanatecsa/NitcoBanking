@@ -148,7 +148,9 @@ Please choose a service below.`);
         return menuSecond(pid, from).then(()=>res.sendStatus(200));
       }
     }
-
+if (id === "CLAIM_NEW") {
+  return sendClaimFlow(pid, from).then(()=>res.sendStatus(200));
+}
     return res.sendStatus(200);
 
   } catch (e) {
@@ -340,5 +342,27 @@ Choose an option:`,
     btn("CLAIM_STATUS", "View Claim Status"),
     btn("BACK_MAIN", "⬅ Back")
   ]);
+}
+
+async function sendClaimFlow(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      body: { text: "Submit New Claim" },
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_id: "847122295070410",   // ✅ YOUR CLAIM FLOW ID
+          flow_cta: "Open"
+        }
+      }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
 }
 app.listen(3000, () => console.log("✅ HR BOT READY"));
