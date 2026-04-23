@@ -176,8 +176,22 @@ async function sendPayslipTemplate(pid, to) {
     to,
     type: "template",
     template: {
-      name: "downloadpayslip",   // ✅ your template name
-      language: { code: "en" }
+      name: "downloadpayslip",
+      language: { code: "en" },
+      components: [
+        {
+          type: "header",
+          parameters: [
+            {
+              type: "document",
+              document: {
+                link: "http://poojalist.com/Images/DileepReddy.pdf", // ✅ PUBLIC PDF URL
+                filename: "Payslip.pdf"
+              }
+            }
+          ]
+        }
+      ]
     }
   }, {
     headers: { Authorization: `Bearer ${TOKEN}` }
