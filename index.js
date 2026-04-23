@@ -124,10 +124,9 @@ Please choose a service below.`);
     return sendClaimFlow(pid, from).then(()=>res.sendStatus(200));
   }
 
-  if (id === "CLAIM_STATUS") {
-    return sendText(pid, from, "📄 View Claim Status: https://your-link.com")
-      .then(()=>res.sendStatus(200));
-  }
+ if (id === "CLAIM_STATUS") {
+  return sendClaimStatusTemplate(pid, from).then(()=>res.sendStatus(200));
+}
 
       if (id === "PAYROLL") return sendText(pid, from, " Payroll module").then(()=>res.sendStatus(200));
 
@@ -167,6 +166,20 @@ Please choose a service below.`);
 });
 
 // ===== SEND FUNCTIONS =====
+
+async function sendClaimStatusTemplate(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "viewclaimstatus",   // ✅ your template name
+      language: { code: "en" }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
 
 // ===== TEMPLATE: REGULARIZE ATTENDANCE =====
 async function sendRegularizeLink(pid, to) {
