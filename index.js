@@ -129,6 +129,9 @@ Please choose a service below.`);
 }
 
       if (id === "PAYROLL") return menuPayroll(pid, from).then(()=>res.sendStatus(200));
+      if (id === "PAYSLIP") {
+  return sendPayslipTemplate(pid, from).then(()=>res.sendStatus(200));
+}
 
       if (id === "POLICY") return sendText(pid, from, " Company policies").then(()=>res.sendStatus(200));
       if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
@@ -166,6 +169,21 @@ Please choose a service below.`);
 });
 
 // ===== SEND FUNCTIONS =====
+
+async function sendPayslipTemplate(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "downloadpayslip",   // ✅ your template name
+      language: { code: "en" }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
 
 async function sendClaimStatusTemplate(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
