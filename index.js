@@ -187,15 +187,20 @@ async function sendContactHRTemplate(pid, to) {
     to,
     type: "template",
     template: {
-      name: "contacthr",   // ✅ EXACT template name from Meta
-      language: { code: "en" }
+      name: "contacthr",
+      language: { code: "en" },
+      components: [
+        {
+          type: "button",
+          sub_type: "flow",   // ✅ REQUIRED
+          index: "0"
+        }
+      ]
     }
   }, {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
 }
-
-
 // ===== TEMPLATE: COMPANY POLICIES =====
 async function sendPolicyTemplate(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
