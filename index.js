@@ -181,6 +181,7 @@ if (id === "BANK_UPDATE") {
 
 // ===== SEND FUNCTIONS =====
 
+
 // ===== TEMPLATE: CONTACT HR =====
 async function sendContactHRTemplate(pid, to) {
   try {
@@ -192,7 +193,14 @@ async function sendContactHRTemplate(pid, to) {
         type: "template",
         template: {
           name: "contacthr",
-          language: { code: "en" }
+          language: { code: "en" },
+          components: [
+            {
+              type: "button",
+              sub_type: "url",   // ✅ THIS IS THE FIX
+              index: "0"
+            }
+          ]
         }
       },
       {
@@ -200,12 +208,14 @@ async function sendContactHRTemplate(pid, to) {
       }
     );
 
-    console.log("✅ CONTACT TEMPLATE SENT:", res.data);
+    console.log("✅ CONTACT SENT:", res.data);
 
   } catch (err) {
     console.log("❌ CONTACT ERROR:", err.response?.data || err.message);
   }
 }
+
+
 // ===== TEMPLATE: COMPANY POLICIES =====
 async function sendPolicyTemplate(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
