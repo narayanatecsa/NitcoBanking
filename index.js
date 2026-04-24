@@ -136,7 +136,9 @@ Please choose a service below.`);
       if (id === "POLICY") {
   return sendPolicyTemplate(pid, from).then(()=>res.sendStatus(200));
 }
-      if (id === "CONTACT") return sendText(pid, from, " HR Contact: +91 XXXXX").then(()=>res.sendStatus(200));
+      if (id === "CONTACT") {
+  return sendContactHRTemplate(pid, from).then(()=>res.sendStatus(200));
+}
       if (id === "BANK_DETAILS") {
   return sendViewBankTemplate(pid, from).then(()=>res.sendStatus(200));
 }
@@ -178,6 +180,21 @@ if (id === "BANK_UPDATE") {
 });
 
 // ===== SEND FUNCTIONS =====
+// ===== TEMPLATE: CONTACT HR =====
+async function sendContactHRTemplate(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "contacthr",   // ✅ EXACT template name from Meta
+      language: { code: "en" }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
 
 // ===== TEMPLATE: COMPANY POLICIES =====
 async function sendPolicyTemplate(pid, to) {
