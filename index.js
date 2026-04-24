@@ -137,7 +137,7 @@ Please choose a service below.`);
   return sendPolicyTemplate(pid, from).then(()=>res.sendStatus(200));
 }
       if (id === "CONTACT") {
-  return sendContactHRTemplate(pid, from).then(()=>res.sendStatus(200));
+  return sendContactFlow(pid, from)
 }
       if (id === "BANK_DETAILS") {
   return sendViewBankTemplate(pid, from).then(()=>res.sendStatus(200));
@@ -183,24 +183,25 @@ if (id === "BANK_UPDATE") {
 
 
 // ===== TEMPLATE: CONTACT HR =====
-async function sendContactHRTemplate(pid, to) {
+async function sendContactFlow(pid, to) {
   try {
     const res = await axios.post(
       `https://graph.facebook.com/v23.0/${pid}/messages`,
       {
         messaging_product: "whatsapp",
         to,
-        type: "template",
-        template: {
-          name: "contacthr",
-          language: { code: "en" },
-          components: [
-            {
-              type: "button",
-              sub_type: "url",   // ✅ THIS IS THE FIX
-              index: "0"
+        type: "interactive",
+        interactive: {
+          type: "flow",
+          body: { text: "Contact HR" },
+          action: {
+            name: "flow",
+            parameters: {
+              flow_message_version: "3",
+              flow_id: "1511045223936865",
+              flow_cta: "Open"
             }
-          ]
+          }
         }
       },
       {
@@ -208,14 +209,12 @@ async function sendContactHRTemplate(pid, to) {
       }
     );
 
-    console.log("✅ CONTACT SENT:", res.data);
+    console.log("✅ FLOW SENT:", res.data);
 
   } catch (err) {
-    console.log("❌ CONTACT ERROR:", err.response?.data || err.message);
+    console.log("❌ FLOW ERROR:", err.response?.data || err.message);
   }
 }
-
-
 // ===== TEMPLATE: COMPANY POLICIES =====
 async function sendPolicyTemplate(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
