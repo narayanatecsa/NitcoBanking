@@ -180,6 +180,7 @@ if (id === "BANK_UPDATE") {
 });
 
 // ===== SEND FUNCTIONS =====
+
 // ===== TEMPLATE: CONTACT HR =====
 async function sendContactHRTemplate(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
@@ -188,14 +189,7 @@ async function sendContactHRTemplate(pid, to) {
     type: "template",
     template: {
       name: "contacthr",
-      language: { code: "en" },
-      components: [
-        {
-          type: "button",
-          sub_type: "flow",   // ✅ REQUIRED
-          index: "0"
-        }
-      ]
+      language: { code: "en" }
     }
   }, {
     headers: { Authorization: `Bearer ${TOKEN}` }
