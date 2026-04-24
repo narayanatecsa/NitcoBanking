@@ -137,7 +137,8 @@ Please choose a service below.`);
   return sendPolicyTemplate(pid, from).then(()=>res.sendStatus(200));
 }
       if (id === "CONTACT") {
-  return sendContactFlow(pid, from)
+  await sendContactFlow(pid, from);
+  return res.sendStatus(200);
 }
       if (id === "BANK_DETAILS") {
   return sendViewBankTemplate(pid, from).then(()=>res.sendStatus(200));
