@@ -11,6 +11,29 @@ const VERIFY = process.env.MYTOKEN;
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
+// ✅ GOOGLE SHEET API
+const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
+
+// ===== GET USER FROM SHEET =====
+async function getUser(phone) {
+  try {
+    const res = await axios.get(SHEET_API);
+    const users = res.data;
+
+    const clean = phone.replace(/\D/g, "");
+
+    const user = users.find(u =>
+      String(u.Mobile).replace(/\D/g, "") === clean
+    );
+
+    return user && user.Status === "Active" ? user : null;
+
+  } catch (err) {
+    console.log("Sheet error:", err.message);
+    return null;
+  }
+}
+
 // ===== VERIFY WEBHOOK =====
 app.get("/webhook", (req, res) => {
   if (
@@ -40,9 +63,17 @@ app.post("/webhook", async (req, res) => {
 
       if (text === "hi" || text === "hello") {
 
-        // FULL WELCOME MESSAGE
+        // ✅ CHECK USER FROM SHEET
+        const user = await getUser(from);
+
+        if (!user) {
+          await sendText(pid, from, "❌ You are not registered or inactive. Please contact HR.");
+          return res.sendStatus(200);
+        }
+
+        // ✅ USE NAME FROM SHEET
         await sendText(pid, from,
-`Hello PSRNL Narayana!
+`Hello ${user.Name}!
 
 Welcome to HRPlace AI Chat Bot
 
