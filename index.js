@@ -183,17 +183,28 @@ if (id === "BANK_UPDATE") {
 
 // ===== TEMPLATE: CONTACT HR =====
 async function sendContactHRTemplate(pid, to) {
-  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
-    messaging_product: "whatsapp",
-    to,
-    type: "template",
-    template: {
-      name: "contacthr",
-      language: { code: "en" }
-    }
-  }, {
-    headers: { Authorization: `Bearer ${TOKEN}` }
-  });
+  try {
+    const res = await axios.post(
+      `https://graph.facebook.com/v23.0/${pid}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "contacthr",
+          language: { code: "en" }
+        }
+      },
+      {
+        headers: { Authorization: `Bearer ${TOKEN}` }
+      }
+    );
+
+    console.log("✅ CONTACT TEMPLATE SENT:", res.data);
+
+  } catch (err) {
+    console.log("❌ CONTACT ERROR:", err.response?.data || err.message);
+  }
 }
 // ===== TEMPLATE: COMPANY POLICIES =====
 async function sendPolicyTemplate(pid, to) {
