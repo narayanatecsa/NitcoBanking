@@ -121,9 +121,21 @@ Simply Select from the options below or Type your query to get started.`
 
     if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
-  await sendText(pid, from,
+  const flowId = msg.interactive.nfm_reply?.response_json?.flow_id;
+
+  // ✅ APPLY LEAVE FLOW
+  if (flowId === "1306256491417200") {
+    await sendText(pid, from,
 `All set! I’ve sent your leave request over to your manager for review.`
-  );
+    );
+  }
+
+  // ✅ CANCEL / EDIT FLOW
+  else if (flowId === "935945472532451") {
+    await sendText(pid, from,
+`Your Leave Cancel or Edit Request Submitted successfully!`
+    );
+  }
 
   await delay(600);
 
@@ -131,11 +143,9 @@ Simply Select from the options below or Type your query to get started.`
 `We can also assist you with below details:`,
 [
   btn("LEAVE_DETAILS", "Leave Details"),
-  btn("EDIT_LEAVE", "Cancel or Edit Leave"),
   btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
 }
-
     // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
@@ -157,6 +167,37 @@ Please Click Apply Leave to Submit New Leave Request`
   await delay(500);
 
   return sendLeaveFlow(pid, from).then(()=>res.sendStatus(200));
+}
+
+      // ===== CANCEL / EDIT LEAVE (STEP 1) =====
+if (id === "EDIT_LEAVE") {
+
+  await sendText(pid, from,
+`Here are the details of your applied Leaves
+
+• Leave Details Information`
+  );
+
+  await delay(600);
+
+  return sendButtons(pid, from,
+`Select an option`,
+[
+  btn("EDIT_FLOW_OPEN", "Leave Details"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+      // ===== OPEN CANCEL/EDIT FLOW (STEP 2) =====
+if (id === "EDIT_FLOW_OPEN") {
+
+  await sendText(pid, from,
+`Cancel Or Edit Leave Request`
+  );
+
+  await delay(500);
+
+  return sendEditLeaveFlow(pid, from).then(()=>res.sendStatus(200));
 }
 
       // ===== LEAVE DETAILS =====
@@ -327,6 +368,31 @@ async function sendLeaveFlow(pid, to) {
           flow_message_version: "3",
           flow_id: "1306256491417200", // ✅ YOUR FLOW ID
           flow_cta: "Apply Leave"
+        }
+      }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
+// ===== CANCEL / EDIT LEAVE FLOW =====
+async function sendEditLeaveFlow(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      body: {
+        text: "Cancel or Edit Leave"
+      },
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_id: "935945472532451", // ✅ YOUR FLOW ID
+          flow_cta: "Open"
         }
       }
     }
