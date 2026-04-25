@@ -118,18 +118,21 @@ Simply Select from the options below or Type your query to get started.`
     }
 
     //flow response
+    
 if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
   const flowId = msg.interactive?.nfm_reply?.response_json?.flow_id;
 
-  if (!flowId) return res.sendStatus(200); // ✅ prevent false trigger
+  if (!flowId) return res.sendStatus(200);
 
+  // ✅ APPLY LEAVE SUCCESS
   if (flowId === "1306256491417200") {
     await sendText(pid, from,
 `All set! I’ve sent your leave request over to your manager for review.`
     );
   }
 
+  // ✅ CANCEL / EDIT SUCCESS
   else if (flowId === "935945472532451") {
     await sendText(pid, from,
 `Your Leave Cancel or Edit Request Submitted successfully!`
@@ -138,14 +141,16 @@ if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
   await delay(600);
 
+  // ✅ COMMON FOLLOW-UP (THIS IS WHAT YOU ASKED)
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
 [
   btn("LEAVE_DETAILS", "Leave Details"),
   btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
-}
-     // ===== BUTTON HANDLER =====
+}    
+    
+    // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
