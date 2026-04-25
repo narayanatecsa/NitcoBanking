@@ -179,15 +179,10 @@ if (id === "EDIT_LEAVE") {
 
   await delay(600);
 
-  return sendButtons(pid, from,
-`Select an option`,
-[
-  btn("EDIT_LEAVE_FLOW", "Leave Details"), // ✅ FIXED ID
-  btn("BACK", "⬅ Main Menu")
-]).then(()=>res.sendStatus(200));
-}
-
-// STEP 2
+  // ✅ DIRECT FLOW OPEN (NO BUTTONS)
+  return sendEditLeaveFlow(pid, from).then(()=>res.sendStatus(200));
+} 
+      // STEP 2
 if (id === "EDIT_LEAVE_FLOW") {
 
   await sendText(pid, from,
