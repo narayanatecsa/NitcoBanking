@@ -121,19 +121,19 @@ Simply Select from the options below or Type your query to get started.`
     
 if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
-  const flowId = msg.interactive?.nfm_reply?.response_json?.flow_id;
+  const data = msg.interactive.nfm_reply?.response_json;
 
-  if (!flowId) return res.sendStatus(200);
+  console.log("FLOW DATA:", data); // debug
 
-  // ✅ APPLY LEAVE SUCCESS
-  if (flowId === "1306256491417200") {
+  // ✅ APPLY LEAVE
+  if (data?.flow_type === "apply_leave") {
     await sendText(pid, from,
 `All set! I’ve sent your leave request over to your manager for review.`
     );
   }
 
-  // ✅ CANCEL / EDIT SUCCESS
-  else if (flowId === "935945472532451") {
+  // ✅ EDIT / CANCEL LEAVE
+  else if (data?.flow_type === "edit_leave") {
     await sendText(pid, from,
 `Your Leave Cancel or Edit Request Submitted successfully!`
     );
@@ -141,7 +141,6 @@ if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
   await delay(600);
 
-  // ✅ COMMON FOLLOW-UP (THIS IS WHAT YOU ASKED)
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
 [
