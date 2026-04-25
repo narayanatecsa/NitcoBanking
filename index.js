@@ -313,6 +313,53 @@ if (id === "PAYSLIP_PDF") {
 }
 
 
+      //claim
+      // ===== CLAIM MENU =====
+if (id === "CLAIM") {
+
+  return sendButtons(pid, from,
+`Please select from the options given below`,
+[
+  btn("APPLY_CLAIM", "Apply New Claim"),
+  btn("VIEW_CLAIMS", "View Claims"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+// ===== APPLY CLAIM =====
+if (id === "APPLY_CLAIM") {
+
+  await sendText(pid, from,
+`New Claim Request
+
+Please click below to submit your claim`
+  );
+
+  await delay(500);
+
+  return sendClaimFlow(pid, from).then(()=>res.sendStatus(200));
+}
+
+// ===== VIEW CLAIMS =====
+if (id === "VIEW_CLAIMS") {
+
+  await sendText(pid, from,
+`You are Right There!
+
+Here are your Applied Claim Details:
+• Claim Details Information`
+  );
+
+  await delay(600);
+
+  // ✅ THIS IS WHAT YOU ASKED (More Options)
+  return sendButtons(pid, from,
+`More Options`,
+[
+  btn("BACK", "⬅ Back to Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
       
          // MORE SERVICES
       if (id === "MORE") {
@@ -492,6 +539,35 @@ async function sendEditLeaveFlow(pid, to) {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
 }
+
+//claim flow 
+
+// ===== CLAIM FLOW =====
+async function sendClaimFlow(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      body: {
+        text: "Claim Form"
+      },
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_id: "847122295070410", // your claim flow id
+          flow_cta: "Open"
+        }
+      }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
+
 
 // ===== START SERVER =====
 app.listen(3000, () => console.log("✅ Bot running on port 3000"));
