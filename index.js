@@ -360,6 +360,58 @@ Here are your Applied Claim Details:
 ]).then(()=>res.sendStatus(200));
 }
 
+      //Shift Roster
+
+      // ===== SHIFT & ROSTER MENU =====
+if (id === "SHIFT") {
+
+  return sendButtons(pid, from,
+`Please select from the options given below`,
+[
+  btn("VIEW_SHIFT", "View My Shift"),
+  btn("VIEW_ROSTER", "View My Roster"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+// ===== VIEW SHIFT =====
+if (id === "VIEW_SHIFT") {
+
+  await sendText(pid, from,
+`You are Right There!
+
+Here are your Shift Details:
+• Shift Details Information`
+  );
+
+  await delay(600);
+
+  return sendButtons(pid, from,
+`More Options`,
+[
+  btn("BACK", "⬅ Back to Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+// ===== VIEW ROSTER =====
+if (id === "VIEW_ROSTER") {
+
+  await sendText(pid, from,
+`You are Right There!
+
+Here are your Roster Details:
+• Roster Details Information`
+  );
+
+  await delay(600);
+
+  return sendButtons(pid, from,
+`More Options`,
+[
+  btn("BACK", "⬅ Back to Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
       
          // MORE SERVICES
       if (id === "MORE") {
