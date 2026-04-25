@@ -159,6 +159,28 @@ Please Click Apply Leave to Submit New Leave Request`
   return sendLeaveFlow(pid, from).then(()=>res.sendStatus(200));
 }
 
+      // ===== LEAVE DETAILS =====
+if (id === "LEAVE_DETAILS") {
+
+  await sendText(pid, from,
+`You are Right There!
+
+Here are your Leave Balance Details:
+• Leave Details Information
+• Casual Leave: 5
+• Sick Leave: 3
+• Earned Leave: 10`
+  );
+
+  await delay(600);
+
+  return sendButtons(pid, from,
+`More Options`,
+[
+  btn("BACK", "⬅ Back to Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+      
          // MORE SERVICES
       if (id === "MORE") {
         return sendButtons(pid, from,
