@@ -208,6 +208,111 @@ Here are your Leave Balance Details:
   btn("BACK", "⬅ Back to Main Menu")
 ]).then(()=>res.sendStatus(200));
 }
+
+//New 
+
+      // ===== ATTENDANCE & PAYROLL =====
+if (id === "ATT_PAYROLL") {
+
+  return sendButtons(pid, from,
+`Please select from the options given below.`,
+[
+  btn("VIEW_TIMESHEET", "View Timesheet"),
+  btn("VIEW_PAYROLL", "View Payroll"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+// ===== VIEW TIMESHEET =====
+if (id === "VIEW_TIMESHEET") {
+
+  await sendText(pid, from,
+`I’ve got your attendance records ready for you.
+
+How would you like to view them today?`
+  );
+
+  await delay(500);
+
+  return sendButtons(pid, from,
+`Choose option`,
+[
+  btn("TIMESHEET_PDF", "Timesheet PDF"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+// ===== TIMESHEET PDF =====
+if (id === "TIMESHEET_PDF") {
+
+  await sendText(pid, from,
+`Here is your Timesheet PDF (Demo)`
+  );
+
+  await delay(600);
+
+  return sendButtons(pid, from,
+`We can also assist you with below details:`,
+[
+  btn("SHIFT", "Shift & Roster"),
+  btn("BACK", "Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+// ===== VIEW PAYROLL =====
+if (id === "VIEW_PAYROLL") {
+
+  await sendText(pid, from,
+`You are Right There!`
+  );
+
+  await delay(500);
+
+  return sendButtons(pid, from,
+`Choose option`,
+[
+  btn("LATEST_PAYSLIP", "Latest Payslip"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+// ===== LATEST PAYSLIP =====
+if (id === "LATEST_PAYSLIP") {
+
+  await sendText(pid, from,
+`I’ve got your Payslip records ready for you.
+
+How would you like to view them today?`
+  );
+
+  await delay(500);
+
+  return sendButtons(pid, from,
+`Choose option`,
+[
+  btn("PAYSLIP_PDF", "Payslip PDF"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+// ===== PAYSLIP PDF =====
+if (id === "PAYSLIP_PDF") {
+
+  await sendText(pid, from,
+`Here is your Payslip PDF (Demo)`
+  );
+
+  await delay(600);
+
+  return sendButtons(pid, from,
+`We can also assist you with below details:`,
+[
+  btn("LEAVE_DETAILS", "Leave Balance"),
+  btn("BACK", "Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
+
       
          // MORE SERVICES
       if (id === "MORE") {
