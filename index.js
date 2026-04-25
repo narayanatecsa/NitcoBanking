@@ -117,13 +117,41 @@ Simply Select from the options below or Type your query to get started.`
       }
     }
 
+    //flow response
+
+    if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
+
+  await sendText(pid, from,
+`All set! I’ve sent your leave request over to your manager for review.`
+  );
+
+  await delay(600);
+
+  return sendButtons(pid, from,
+`We can also assist you with below details:`,
+[
+  btn("LEAVE_DETAILS", "Leave Details"),
+  btn("EDIT_LEAVE", "Cancel or Edit Leave"),
+  btn("BACK", "Main Menu")
+]).then(()=>res.sendStatus(200));
+}
+
     // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
       // ===== LEAVE MENU =====
-if (id === "LEAVE") {
-  return menuLeave(pid, from).then(() => res.sendStatus(200));
+if (id === "APPLY_LEAVE") {
+
+  await sendText(pid, from,
+`New Leave
+
+Please Click Apply Leave to Submit New Leave Request`
+  );
+
+  await delay(500);
+
+  return sendLeaveFlow(pid, from).then(()=>res.sendStatus(200));
 }
 
       // MORE SERVICES
@@ -252,6 +280,32 @@ async function menuLeave(pid, to) {
 [
   btn("BACK", "⬅ Back to Main Menu")
 ]);
+}
+
+//Flow 
+
+async function sendLeaveFlow(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      body: {
+        text: "Apply Leave"
+      },
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_id: "1306256491417200", // ✅ YOUR FLOW ID
+          flow_cta: "Apply Leave"
+        }
+      }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
 }
 
 // ===== START SERVER =====
