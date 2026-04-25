@@ -118,19 +118,18 @@ Simply Select from the options below or Type your query to get started.`
     }
 
     //flow response
+if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
-    if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
+  const flowId = msg.interactive?.nfm_reply?.response_json?.flow_id;
 
-  const flowId = msg.interactive.nfm_reply?.response_json?.flow_id;
+  if (!flowId) return res.sendStatus(200); // ✅ prevent false trigger
 
-  // ✅ APPLY LEAVE FLOW
   if (flowId === "1306256491417200") {
     await sendText(pid, from,
 `All set! I’ve sent your leave request over to your manager for review.`
     );
   }
 
-  // ✅ CANCEL / EDIT FLOW
   else if (flowId === "935945472532451") {
     await sendText(pid, from,
 `Your Leave Cancel or Edit Request Submitted successfully!`
@@ -146,7 +145,7 @@ Simply Select from the options below or Type your query to get started.`
   btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
 }
-    // ===== BUTTON HANDLER =====
+     // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
@@ -169,7 +168,7 @@ Please Click Apply Leave to Submit New Leave Request`
   return sendLeaveFlow(pid, from).then(()=>res.sendStatus(200));
 }
 
-      // ===== CANCEL / EDIT LEAVE (STEP 1) =====
+      // STEP 1
 if (id === "EDIT_LEAVE") {
 
   await sendText(pid, from,
@@ -183,13 +182,13 @@ if (id === "EDIT_LEAVE") {
   return sendButtons(pid, from,
 `Select an option`,
 [
-  btn("EDIT_FLOW_OPEN", "Leave Details"),
+  btn("EDIT_LEAVE_FLOW", "Leave Details"), // ✅ FIXED ID
   btn("BACK", "⬅ Main Menu")
 ]).then(()=>res.sendStatus(200));
 }
 
-      // ===== OPEN CANCEL/EDIT FLOW (STEP 2) =====
-if (id === "EDIT_FLOW_OPEN") {
+// STEP 2
+if (id === "EDIT_LEAVE_FLOW") {
 
   await sendText(pid, from,
 `Cancel Or Edit Leave Request`
@@ -199,7 +198,7 @@ if (id === "EDIT_FLOW_OPEN") {
 
   return sendEditLeaveFlow(pid, from).then(()=>res.sendStatus(200));
 }
-
+     
       // ===== LEAVE DETAILS =====
 if (id === "LEAVE_DETAILS") {
 
