@@ -228,6 +228,26 @@ async function sendButtons(pid, to, text, buttons) {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
 }
+//leave buttons
+
+async function menuLeave(pid, to) {
+
+  await sendButtons(pid, to,
+`Please select from the options given below.`,
+[
+  btn("APPLY_LEAVE", "Apply Leave"),
+  btn("LEAVE_DETAILS", "Leave Details"),
+  btn("EDIT_LEAVE", "Cancel / Edit Leave")
+]);
+
+  await delay(600);
+
+  return sendButtons(pid, to,
+`More Options`,
+[
+  btn("BACK", "⬅ Back to Main Menu")
+]);
+}
 
 // ===== START SERVER =====
 app.listen(3000, () => console.log("✅ Bot running on port 3000"));
