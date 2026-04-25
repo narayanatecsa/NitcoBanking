@@ -140,7 +140,12 @@ Simply Select from the options below or Type your query to get started.`
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
       const id = msg.interactive.button_reply.id;
 
-      // ===== LEAVE MENU =====
+// ===== LEAVE MENU =====
+if (id === "LEAVE") {
+  return menuLeave(pid, from).then(()=>res.sendStatus(200));
+}
+
+// ===== APPLY LEAVE =====
 if (id === "APPLY_LEAVE") {
 
   await sendText(pid, from,
@@ -154,7 +159,7 @@ Please Click Apply Leave to Submit New Leave Request`
   return sendLeaveFlow(pid, from).then(()=>res.sendStatus(200));
 }
 
-      // MORE SERVICES
+         // MORE SERVICES
       if (id === "MORE") {
         return sendButtons(pid, from,
 `More Services`,
