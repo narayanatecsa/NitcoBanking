@@ -121,23 +121,12 @@ Simply Select from the options below or Type your query to get started.`
     
 if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
-  const data = msg.interactive.nfm_reply?.response_json;
+  console.log("FLOW RESPONSE:", msg.interactive.nfm_reply); // ✅ debug
 
-  console.log("FLOW DATA:", data); // debug
-
-  // ✅ APPLY LEAVE
-  if (data?.flow_type === "apply_leave") {
-    await sendText(pid, from,
-`All set! I’ve sent your leave request over to your manager for review.`
-    );
-  }
-
-  // ✅ EDIT / CANCEL LEAVE
-  else if (data?.flow_type === "edit_leave") {
-    await sendText(pid, from,
-`Your Leave Cancel or Edit Request Submitted successfully!`
-    );
-  }
+  // ✅ Always respond after flow submit
+  await sendText(pid, from,
+`Your request has been submitted successfully!`
+  );
 
   await delay(600);
 
@@ -147,7 +136,7 @@ if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
   btn("LEAVE_DETAILS", "Leave Details"),
   btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
-}    
+}   
     
     // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
