@@ -296,11 +296,11 @@ How would you like to view them today?`
 }
 
 // ===== PAYSLIP PDF =====
+
+      // ===== PAYSLIP PDF (TEMPLATE) =====
 if (id === "PAYSLIP_PDF") {
 
-  await sendText(pid, from,
-`Here is your Payslip PDF (Demo)`
-  );
+  await sendPayslipTemplate(pid, from);
 
   await delay(600);
 
@@ -619,7 +619,22 @@ async function sendClaimFlow(pid, to) {
   });
 }
 
-
+// ===== SEND PAYSLIP TEMPLATE =====
+async function sendPayslipTemplate(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "downloadpayslip",   // ✅ your template name
+      language: {
+        code: "en"
+      }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
 
 // ===== START SERVER =====
 app.listen(3000, () => console.log("✅ Bot running on port 3000"));
