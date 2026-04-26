@@ -243,13 +243,12 @@ How would you like to view them today?`
 }
 
 // ===== TIMESHEET PDF =====
+// ===== TIMESHEET PDF (TEMPLATE) =====
 if (id === "TIMESHEET_PDF") {
 
-  await sendText(pid, from,
-`Here is your Timesheet PDF (Demo)`
-  );
+  await sendTimesheetTemplate(pid, from);
 
-  await delay(600);
+  await delay(900);
 
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
@@ -638,6 +637,35 @@ async function sendPayslipTemplate(pid, to) {
               document: {
                 link: "https://application.hrplace.com.my/TecCSA/7/view_payroll/eyJpdiI6Ik12aGRoWkQ0ZzQ4MVFkTDAzRS9WK0E9PSIsInZhbHVlIjoiK2RHazFtbm81RnlqcXkyQmFvUlJkZz09IiwibWFjIjoiY2E2NmY4MTQwZGY3MjAwZmMzNjA5OThmMzE1NGFlM2UwOTYwYjhkZTNhYjJhNDk0MWUzNzM4Yzk5YmNmNGM2YiIsInRhZyI6IiJ9/May/2024", // ✅ replace with real PDF
                 filename: "Payslip.pdf"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
+// ===== SEND TIMESHEET TEMPLATE =====
+async function sendTimesheetTemplate(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "downloadtimesheet",   // ✅ your template name
+      language: { code: "en" },
+      components: [
+        {
+          type: "header",
+          parameters: [
+            {
+              type: "document",
+              document: {
+                link: "https://application.hrplace.com.my/TecCSA/7/view_timesheet/eyJpdiI6Ik5GYzdCR21ScVlrS3hGc3ZIZElwN2c9PSIsInZhbHVlIjoiempnN2xwZmx6MjhDaFUyVE9tMVJodz09IiwibWFjIjoiMTE2N2JjMTBkZDJlNDI5OGRmYzY1NmM4MGNjZDQwZTJiOTNlM2YzNzMxZjQ4YmE0YzJkYTU1ZjA5ZWM5NDhmNiIsInRhZyI6IiJ9/January/2026", // 🔁 replace with real timesheet PDF
+                filename: "Timesheet.pdf"
               }
             }
           ]
