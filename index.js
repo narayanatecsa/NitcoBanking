@@ -302,7 +302,7 @@ if (id === "PAYSLIP_PDF") {
 
   await sendPayslipTemplate(pid, from);
 
-  await delay(600);
+  await delay(900);
 
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
