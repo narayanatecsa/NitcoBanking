@@ -461,23 +461,20 @@ Date       Day   Holiday
 }
       
       // CONTACT HR
-      if (id === "CONTACT") {
-        await sendText(pid, from,
-`You are Right There!
+// ===== CONTACT HR (FLOW) =====
+if (id === "CONTACT") {
 
-Here are your HR Contact Details:
-• Phone & Email`
-        );
+  await sendContactHRFlow(pid, from);
 
-        await delay(500);
+  await delay(600);
 
-        return sendButtons(pid, from,
+  return sendButtons(pid, from,
 `More Options`,
 [
   btn("BACK", "⬅ Back to Main Menu")
 ]).then(()=>res.sendStatus(200));
-      }
-
+}
+      
       // BACK TO MAIN
       if (id === "BACK") {
         await sendButtons(pid, from,
@@ -690,6 +687,32 @@ async function sendTimesheetTemplate(pid, to) {
           ]
         }
       ]
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
+}
+
+// Contact flow
+// ===== CONTACT HR FLOW =====
+async function sendContactHRFlow(pid, to) {
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "flow",
+      body: {
+        text: "Contact HR"
+      },
+      action: {
+        name: "flow",
+        parameters: {
+          flow_message_version: "3",
+          flow_id: "1511045223936865", // ✅ your flow ID
+          flow_cta: "Open"
+        }
+      }
     }
   }, {
     headers: { Authorization: `Bearer ${TOKEN}` }
