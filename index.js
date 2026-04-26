@@ -619,6 +619,7 @@ async function sendClaimFlow(pid, to) {
   });
 }
 
+
 // ===== SEND PAYSLIP TEMPLATE =====
 async function sendPayslipTemplate(pid, to) {
   await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
@@ -626,10 +627,22 @@ async function sendPayslipTemplate(pid, to) {
     to,
     type: "template",
     template: {
-      name: "downloadpayslip",   // ✅ your template name
-      language: {
-        code: "en"
-      }
+      name: "downloadpayslip",
+      language: { code: "en" },
+      components: [
+        {
+          type: "header",
+          parameters: [
+            {
+              type: "document",
+              document: {
+                link: "https://application.hrplace.com.my/TecCSA/7/view_payroll/eyJpdiI6Ik12aGRoWkQ0ZzQ4MVFkTDAzRS9WK0E9PSIsInZhbHVlIjoiK2RHazFtbm81RnlqcXkyQmFvUlJkZz09IiwibWFjIjoiY2E2NmY4MTQwZGY3MjAwZmMzNjA5OThmMzE1NGFlM2UwOTYwYjhkZTNhYjJhNDk0MWUzNzM4Yzk5YmNmNGM2YiIsInRhZyI6IiJ9/May/2024", // ✅ replace with real PDF
+                filename: "Payslip.pdf"
+              }
+            }
+          ]
+        }
+      ]
     }
   }, {
     headers: { Authorization: `Bearer ${TOKEN}` }
