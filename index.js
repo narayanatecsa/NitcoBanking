@@ -424,23 +424,42 @@ Here are your Roster Details:
       }
 
       // PUBLIC HOLIDAYS
-      if (id === "HOLIDAYS") {
-        await sendText(pid, from,
+// PUBLIC HOLIDAYS
+if (id === "HOLIDAYS") {
+
+  await sendText(pid, from,
 `You are Right There!
 
-Here are your Public Holiday Details:
-• Public Holiday Information`
-        );
+📅 *Public Holiday List*
 
-        await delay(500);
+Date       Day   Holiday
+--------------------------------
+17 Feb   Tue   Chinese New Year
+18 Feb   Wed   Chinese New Year (Day 2)
+20 Mar   Fri   Hari Raya Aidilfitri Holiday
+21 Mar   Sat   Hari Raya Aidilfitri
+22 Mar   Sun   Hari Raya Aidilfitri Holiday
+1 May    Fri   Labour Day
+27 May   Wed   Hari Raya Haji
+31 May   Sun   Wesak Day
+1 Jun    Mon   King's Birthday (Agong)
+17 Jun   Wed   Awal Muharram
+25 Aug   Tue   Prophet Muhammad's Birthday
+31 Aug   Mon   Merdeka Day (National Day)
+16 Sep   Wed   Malaysia Day
+8 Nov    Sun   Deepavali (Observed nationwide except Sarawak)
+25 Dec   Fri   Christmas Day`
+  );
 
-        return sendButtons(pid, from,
+  await delay(600);
+
+  return sendButtons(pid, from,
 `More Options`,
 [
   btn("BACK", "⬅ Back to Main Menu")
 ]).then(()=>res.sendStatus(200));
-      }
-
+}
+      
       // CONTACT HR
       if (id === "CONTACT") {
         await sendText(pid, from,
