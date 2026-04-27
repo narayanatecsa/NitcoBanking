@@ -176,13 +176,14 @@ if (flowType === "apply_leave") {
 
 // ✅ CLAIM FLOW BUTTONS
 else if (flowType === "apply_claim") {
+  message = "All set! I’ve sent your Claim request over to your manager for review.";
+
   buttons = [
     btn("APPLY_CLAIM", "Apply New Claim"),
     btn("VIEW_CLAIMS", "View Claims"),
     btn("BACK", "Main Menu")
   ];
 }
-
 // ✅ EDIT LEAVE FLOW BUTTONS
 else if (flowType === "edit_leave") {
   buttons = [
