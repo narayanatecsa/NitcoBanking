@@ -248,7 +248,9 @@ if (id === "TIMESHEET_PDF") {
 
   await sendTimesheetTemplate(pid, from);
 
-  await delay(1500);
+  await sendText(pid, from, " ");
+
+  await delay(500);
 
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
@@ -299,10 +301,15 @@ How would you like to view them today?`
       // ===== PAYSLIP PDF (TEMPLATE) =====
 if (id === "PAYSLIP_PDF") {
 
+  // 1️⃣ Send template
   await sendPayslipTemplate(pid, from);
 
-  await delay(1500);
+  // 2️⃣ Small separator text (IMPORTANT TRICK)
+  await sendText(pid, from, " ");
 
+  await delay(500);
+
+  // 3️⃣ Then buttons
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
 [
@@ -310,7 +317,6 @@ if (id === "PAYSLIP_PDF") {
   btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
 }
-
 
       //claim
       // ===== CLAIM MENU =====
