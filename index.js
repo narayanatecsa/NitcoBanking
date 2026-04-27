@@ -195,7 +195,7 @@ else if (flowType === "edit_leave") {
 // ✅ CONTACT HR FLOW BUTTONS
 else if (flowType === "contact_hr") {
   buttons = [
-    btn("CONTACT", "Contact HR"),
+   // btn("CONTACT", "Contact HR"),
     btn("BACK", "Main Menu")
   ];
 }
