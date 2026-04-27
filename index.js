@@ -118,32 +118,41 @@ Simply Select from the options below or Type your query to get started.`
     }
 
     //flow response
+    
 if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
   const flow = msg.interactive.nfm_reply;
   console.log("FLOW RESPONSE:", flow);
 
-  const flowId = flow?.flow_id;
+  let message = "Your request has been submitted successfully!";
 
-  //let message = "Your request has been submitted successfully!";
+  // ✅ PARSE RESPONSE JSON
+  let data = {};
+  try {
+    data = JSON.parse(flow.response_json);
+  } catch (e) {
+    console.log("JSON parse error");
+  }
+
+  const flowType = data.flow_type;
 
   // ✅ APPLY LEAVE
-  if (flowId === "1306256491417200") {
+  if (flowType === "apply_leave") {
     message = "All set! I’ve sent your leave request over to your manager for review.";
   }
 
   // ✅ CLAIM
-  else if (flowId === "847122295070410") {
+  else if (flowType === "apply_claim") {
     message = "All set! I’ve sent your Claim request over to your manager for review.";
   }
 
   // ✅ EDIT / CANCEL LEAVE
-  else if (flowId === "935945472532451") {
+  else if (flowType === "edit_leave") {
     message = "Your Leave Cancel or Edit Request Submitted successfully!";
   }
 
-  // ✅ CONTACT HR (optional if needed)
-  else if (flowId === "1511045223936865") {
+  // ✅ CONTACT HR
+  else if (flowType === "contact_hr") {
     message = "Your request has been sent to HR successfully!";
   }
 
@@ -157,7 +166,7 @@ if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
   btn("LEAVE_DETAILS", "Leave Details"),
   btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
-}    
+}
     
     // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
