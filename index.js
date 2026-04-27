@@ -128,7 +128,7 @@ if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 `Your request has been submitted successfully!`
   );
 
-  await delay(900);
+  await delay(600);
 
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
@@ -248,7 +248,7 @@ if (id === "TIMESHEET_PDF") {
 
   await sendTimesheetTemplate(pid, from);
 
-  await delay(900);
+  await delay(1500);
 
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
@@ -301,7 +301,7 @@ if (id === "PAYSLIP_PDF") {
 
   await sendPayslipTemplate(pid, from);
 
-  await delay(900);
+  await delay(1500);
 
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
