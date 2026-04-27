@@ -156,17 +156,53 @@ if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
     message = "Your request has been sent to HR successfully!";
   }
 
-  await sendText(pid, from, message);
+ await sendText(pid, from, message);
 
-  await delay(600);
+await delay(600);
 
-  return sendButtons(pid, from,
-`We can also assist you with below details:`,
-[
-  btn("LEAVE_DETAILS", "Leave Details"),
+// ✅ DEFAULT BUTTONS
+let buttons = [
   btn("BACK", "Main Menu")
-]).then(()=>res.sendStatus(200));
+];
+
+// ✅ LEAVE FLOW BUTTONS
+if (flowType === "apply_leave") {
+  buttons = [
+    btn("LEAVE_DETAILS", "Leave Balance"),
+    btn("EDIT_LEAVE", "Cancel / Edit Leave"),
+    btn("BACK", "Main Menu")
+  ];
 }
+
+// ✅ CLAIM FLOW BUTTONS
+else if (flowType === "apply_claim") {
+  buttons = [
+    btn("APPLY_CLAIM", "Apply New Claim"),
+    btn("VIEW_CLAIMS", "View Claims"),
+    btn("BACK", "Main Menu")
+  ];
+}
+
+// ✅ EDIT LEAVE FLOW BUTTONS
+else if (flowType === "edit_leave") {
+  buttons = [
+    btn("LEAVE_DETAILS", "Leave Balance"),
+    btn("BACK", "Main Menu")
+  ];
+}
+
+// ✅ CONTACT HR FLOW BUTTONS
+else if (flowType === "contact_hr") {
+  buttons = [
+    btn("CONTACT", "Contact HR"),
+    btn("BACK", "Main Menu")
+  ];
+}
+
+return sendButtons(pid, from,
+`We can also assist you with below details:`,
+buttons
+).then(()=>res.sendStatus(200));
     
     // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
