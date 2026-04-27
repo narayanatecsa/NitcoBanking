@@ -128,7 +128,7 @@ if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 `Your request has been submitted successfully!`
   );
 
-  await delay(600);
+  await delay(900);
 
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
