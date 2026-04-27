@@ -203,6 +203,8 @@ return sendButtons(pid, from,
 `We can also assist you with below details:`,
 buttons
 ).then(()=>res.sendStatus(200));
+
+} // ✅ ADD THIS LINE (closing nfm_reply block)
     
     // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
