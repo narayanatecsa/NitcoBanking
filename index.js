@@ -118,15 +118,36 @@ Simply Select from the options below or Type your query to get started.`
     }
 
     //flow response
-    
 if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
-  console.log("FLOW RESPONSE:", msg.interactive.nfm_reply); // ✅ debug
+  const flow = msg.interactive.nfm_reply;
+  console.log("FLOW RESPONSE:", flow);
 
-  // ✅ Always respond after flow submit
-  await sendText(pid, from,
-`Your request has been submitted successfully!`
-  );
+  const flowId = flow?.flow_id;
+
+  let message = "Your request has been submitted successfully!";
+
+  // ✅ APPLY LEAVE
+  if (flowId === "1306256491417200") {
+    message = "All set! I’ve sent your leave request over to your manager for review.";
+  }
+
+  // ✅ CLAIM
+  else if (flowId === "847122295070410") {
+    message = "All set! I’ve sent your Claim request over to your manager for review.";
+  }
+
+  // ✅ EDIT / CANCEL LEAVE
+  else if (flowId === "935945472532451") {
+    message = "Your Leave Cancel or Edit Request Submitted successfully!";
+  }
+
+  // ✅ CONTACT HR (optional if needed)
+  else if (flowId === "1511045223936865") {
+    message = "Your request has been sent to HR successfully!";
+  }
+
+  await sendText(pid, from, message);
 
   await delay(600);
 
@@ -136,7 +157,7 @@ if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
   btn("LEAVE_DETAILS", "Leave Details"),
   btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
-}   
+}    
     
     // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
