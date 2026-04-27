@@ -651,7 +651,7 @@ async function sendPayslipTemplate(pid, to) {
             {
               type: "document",
               document: {
-                link: "https://application.hrplace.com.my/TecCSA/7/view_payroll/eyJpdiI6Ik12aGRoWkQ0ZzQ4MVFkTDAzRS9WK0E9PSIsInZhbHVlIjoiK2RHazFtbm81RnlqcXkyQmFvUlJkZz09IiwibWFjIjoiY2E2NmY4MTQwZGY3MjAwZmMzNjA5OThmMzE1NGFlM2UwOTYwYjhkZTNhYjJhNDk0MWUzNzM4Yzk5YmNmNGM2YiIsInRhZyI6IiJ9/May/2024", // ✅ replace with real PDF
+                link: "https://www.poojalist.com/Images/Payslip.pdf", // ✅ replace with real PDF
                 filename: "Payslip.pdf"
               }
             }
@@ -680,7 +680,7 @@ async function sendTimesheetTemplate(pid, to) {
             {
               type: "document",
               document: {
-                link: "https://application.hrplace.com.my/TecCSA/7/view_timesheet/eyJpdiI6Ik5GYzdCR21ScVlrS3hGc3ZIZElwN2c9PSIsInZhbHVlIjoiempnN2xwZmx6MjhDaFUyVE9tMVJodz09IiwibWFjIjoiMTE2N2JjMTBkZDJlNDI5OGRmYzY1NmM4MGNjZDQwZTJiOTNlM2YzNzMxZjQ4YmE0YzJkYTU1ZjA5ZWM5NDhmNiIsInRhZyI6IiJ9/January/2026", // 🔁 replace with real timesheet PDF
+                link: "https://www.poojalist.com/Images/Timesheet.pdf", // 🔁 replace with real timesheet PDF
                 filename: "Timesheet.pdf"
               }
             }
