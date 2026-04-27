@@ -250,7 +250,7 @@ if (id === "TIMESHEET_PDF") {
 
   await sendText(pid, from, " ");
 
-  await delay(500);
+  await delay(1500);
 
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
@@ -307,7 +307,7 @@ if (id === "PAYSLIP_PDF") {
   // 2️⃣ Small separator text (IMPORTANT TRICK)
   await sendText(pid, from, " ");
 
-  await delay(500);
+  await delay(1500);
 
   // 3️⃣ Then buttons
   return sendButtons(pid, from,
