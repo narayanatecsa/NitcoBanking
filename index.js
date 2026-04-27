@@ -125,7 +125,7 @@ if (msg.type === "interactive" && msg.interactive?.type === "nfm_reply") {
 
   const flowId = flow?.flow_id;
 
-  let message = "Your request has been submitted successfully!";
+  //let message = "Your request has been submitted successfully!";
 
   // ✅ APPLY LEAVE
   if (flowId === "1306256491417200") {
