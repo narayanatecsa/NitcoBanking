@@ -179,7 +179,7 @@ else if (flowType === "apply_claim") {
   message = "All set! I’ve sent your Claim request over to your manager for review.";
 
   buttons = [
-    btn("APPLY_CLAIM", "Apply New Claim"),
+    //btn("APPLY_CLAIM", "Apply New Claim"),
     btn("VIEW_CLAIMS", "View Claims"),
     btn("BACK", "Main Menu")
   ];
