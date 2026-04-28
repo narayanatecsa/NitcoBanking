@@ -480,23 +480,38 @@ if (id === "SHIFT") {
 // ===== VIEW SHIFT =====
 if (id === "VIEW_SHIFT") {
 
-  await sendText(pid, from,
-`You are Right There!
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to: from,
+    type: "interactive",
+    interactive: {
+      type: "cta_url",
+      body: {
+        text: "📅 View your monthly shift calendar"
+      },
+      action: {
+        name: "cta_url",
+        parameters: {
+          display_text: "Open Calendar",
+          url: "https://poojalist.com/calendar.html"
+        }
+      }
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
 
-Here are your Shift Details:
-• Shift Details Information`
-  );
-
-  await delay(600);
+  await delay(800);
 
   return sendButtons(pid, from,
-`More Options`,
+`We can also assist you with below details:`,
 [
-  btn("BACK", "⬅ Back to Main Menu")
+  btn("VIEW_ROSTER", "View My Roster"),
+  btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
+  
 }
-
-// ===== VIEW ROSTER =====
+      // ===== VIEW ROSTER =====
 if (id === "VIEW_ROSTER") {
 
   await sendText(pid, from,
