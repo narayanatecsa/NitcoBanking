@@ -382,19 +382,32 @@ How would you like to view them today?`
 }
 
 // ===== PAYSLIP PDF =====
-
-      // ===== PAYSLIP PDF (TEMPLATE) =====
+      
 if (id === "PAYSLIP_PDF") {
 
-  // 1️⃣ Send template
-  await sendPayslipTemplate(pid, from);
+  // ✅ 1. Send PDF directly (NO TEMPLATE)
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to: from,
+    type: "document",
+    document: {
+      link: "https://www.poojalist.com/Images/Payslip.pdf",
+      filename: "Payslip.pdf"
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
 
-  // 2️⃣ Small separator text (IMPORTANT TRICK)
-  await sendText(pid, from, " ");
+  await delay(1000);
 
-  await delay(1500);
+  // ✅ 2. Message
+  await sendText(pid, from,
+`Please click on the PDF to download your document.`
+  );
 
-  // 3️⃣ Then buttons
+  await delay(600);
+
+  // ✅ 3. Buttons
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
 [
@@ -402,7 +415,7 @@ if (id === "PAYSLIP_PDF") {
   btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
 }
-
+      
       //claim
       // ===== CLAIM MENU =====
 if (id === "CLAIM") {
