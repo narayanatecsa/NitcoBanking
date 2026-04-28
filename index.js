@@ -312,15 +312,32 @@ How would you like to view them today?`
 }
 
 // ===== TIMESHEET PDF =====
-// ===== TIMESHEET PDF (TEMPLATE) =====
-if (id === "TIMESHEET_PDF") {
 
-  await sendTimesheetTemplate(pid, from);
+      if (id === "TIMESHEET_PDF") {
 
-  await sendText(pid, from, " ");
+  // ✅ SEND PDF DIRECTLY (NO TEMPLATE)
+  await axios.post(`https://graph.facebook.com/v23.0/${pid}/messages`, {
+    messaging_product: "whatsapp",
+    to: from,
+    type: "document",
+    document: {
+      link: "https://www.poojalist.com/Images/Timesheet.pdf",
+      filename: "Timesheet.pdf"
+    }
+  }, {
+    headers: { Authorization: `Bearer ${TOKEN}` }
+  });
 
-  await delay(1500);
+  await delay(1000);
 
+  // ✅ THEN TEXT
+  await sendText(pid, from,
+`Please click on the PDF to download your document.`
+  );
+
+  await delay(600);
+
+  // ✅ THEN BUTTONS
   return sendButtons(pid, from,
 `We can also assist you with below details:`,
 [
@@ -328,7 +345,6 @@ if (id === "TIMESHEET_PDF") {
   btn("BACK", "Main Menu")
 ]).then(()=>res.sendStatus(200));
 }
-
 // ===== VIEW PAYROLL =====
 if (id === "VIEW_PAYROLL") {
 
