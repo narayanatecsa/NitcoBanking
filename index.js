@@ -10,6 +10,10 @@ const TOKEN = process.env.TOKEN;
 const VERIFY = process.env.MYTOKEN;
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
+//Newly added
+// ===== INACTIVITY TRACKER =====
+const userTimers = {};
+const INACTIVE_TIME = 5 * 60 * 1000; // 5 minutes
 
 // ✅ GOOGLE SHEET API
 const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
@@ -56,6 +60,8 @@ app.post("/webhook", async (req, res) => {
 
     const from = msg.from;
     const pid = change.metadata.phone_number_id;
+    // Newly added line
+    handleInactivity(pid, from);
 
     // ===== TEXT (HI FLOW) =====
     if (msg.type === "text") {
@@ -851,6 +857,35 @@ async function sendContactHRFlow(pid, to) {
   }, {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
+}
+
+async function handleInactivity(pid, from) {
+
+  // clear old timer if exists
+  if (userTimers[from]) {
+    clearTimeout(userTimers[from]);
+  }
+
+  // set new timer
+  userTimers[from] = setTimeout(async () => {
+    try {
+      await sendText(pid, from,
+`You have been inactive for a while. We are waiting for your response.`
+      );
+
+      await delay(500);
+
+      await sendText(pid, from,
+`Knock Knock!
+
+We are here to take your command!
+Alternatively, just type and send 'Hi' to browse all our HRPlace services on whatsapp.`
+      );
+
+    } catch (err) {
+      console.log("Inactivity error:", err.message);
+    }
+  }, INACTIVE_TIME);
 }
 
 // ===== START SERVER =====
