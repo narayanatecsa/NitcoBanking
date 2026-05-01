@@ -64,14 +64,7 @@ app.post("/webhook", async (req, res) => {
    const from = msg.from;
 const pid = change.metadata.phone_number_id;
 
-// ✅ Track activity
-userActivity[from] = Date.now();
 
-// ✅ Reset inactivity flag when user replies
-inactivitySent[from] = false;
-
-// ✅ Start inactivity timer
-handleInactivity(pid, from);
     // ===== TEXT (HI FLOW) =====
    if (msg.type === "text") {
 
@@ -947,12 +940,10 @@ async function handleInactivity(pid, from) {
 
   userTimers[from] = setTimeout(async () => {
 
-    // ✅ If user already active again → STOP
-    if (userActivity[from] && (Date.now() - userActivity[from] < INACTIVE_TIME)) {
-      return;
-    }
+    
+  
 
-    // ✅ Prevent sending again
+    
     if (inactivitySent[from]) return;
 
     inactivitySent[from] = true;
