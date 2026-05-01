@@ -179,51 +179,8 @@ Simply select an option below or type your request.`
 ]).then(()=>res.sendStatus(200));
 }
   }
-        // ✅ USE NAME FROM SHEET
-        await sendText(pid, from,
-`Hello ${user.Name}!
 
-Welcome to HRPlace AI Chat Bot
-
-You are just 2 Steps away to experience a whole new way of HRPlace that is convenient, secure and fast..!
-
-To know more, feel free to check out our:
-
-Terms and Conditions:
-https://hrplace.com.my/terms-and-conditions.php
-
-Privacy Policy:
-https://hrplace.com.my/privacy_policy.php
-
-Lets get started!
-
-Simply Select from the options below or Type your query to get started.`
-        );
-
-        await delay(800);
-
-        // MAIN BUTTONS
-        await sendButtons(pid, from,
-`Choose an option:`,
-[
-  btn("LEAVE", "Leave"),
-  btn("ATT_PAYROLL", "Attendance & Payroll"),
-  btn("CLAIM", "Claim")
-]);
-
-        await delay(800);
-
-        // QUICK SERVICES
-        await sendButtons(pid, from,
-`Quick Services is just a click away :`,
-[
-  btn("SHIFT", "Shift & Roster"),
-  btn("MORE", "More")
-]);
-
-        return res.sendStatus(200);
-      }
-    }
+    
 
     //flow response
     
