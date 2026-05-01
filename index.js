@@ -178,6 +178,7 @@ Simply select an option below or type your request.`
   btn("CLAIM", "Claim")
 ]).then(()=>res.sendStatus(200));
 }
+  }
         // ✅ USE NAME FROM SHEET
         await sendText(pid, from,
 `Hello ${user.Name}!
