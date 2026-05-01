@@ -73,31 +73,58 @@ inactivitySent[from] = false;
 // ✅ Start inactivity timer
 handleInactivity(pid, from);
     // ===== TEXT (HI FLOW) =====
-    if (msg.type === "text") {
-      const text = msg.text.body.toLowerCase().trim();
+   if (msg.type === "text") {
 
-      if (text === "hi" || text === "hello") {
+  const text = msg.text.body.toLowerCase().trim();
 
-        // ✅ CHECK USER FROM SHEET
-        const user = await getUser(from);
+  // ===== HI FLOW =====
+  if (text === "hi" || text === "hello") {
 
-        if (!user) {
-          await sendText(pid, from, "❌ You are not registered or inactive. Please contact HR.");
-          return res.sendStatus(200);
-        }
+    const user = await getUser(from);
 
-        // keyword block
-        // ===== SMART KEYWORD HANDLER =====
-if (msg.type === "text") {
+    if (!user) {
+      await sendText(pid, from, "❌ You are not registered or inactive. Please contact HR.");
+      return res.sendStatus(200);
+    }
 
-  const text = msg.text.body.toLowerCase();
+    await sendText(pid, from,
+`Hello ${user.Name}!
 
-  // ✅ LEAVE
+Welcome to HRPlace AI Chat Bot
+
+Simply select an option below or type your request.`
+    );
+
+    await delay(800);
+
+    await sendButtons(pid, from,
+`Choose an option:`,
+[
+  btn("LEAVE", "Leave"),
+  btn("ATT_PAYROLL", "Attendance & Payroll"),
+  btn("CLAIM", "Claim")
+]);
+
+    await delay(800);
+
+    await sendButtons(pid, from,
+`Quick Services`,
+[
+  btn("SHIFT", "Shift & Roster"),
+  btn("MORE", "More")
+]);
+
+    return res.sendStatus(200);
+  }
+
+  // ===== KEYWORD HANDLER =====
+
+  // LEAVE
   if (text.includes("leave")) {
     return menuLeave(pid, from).then(() => res.sendStatus(200));
   }
 
-  // ✅ ATTENDANCE / PAYROLL
+  // ATTENDANCE / PAYROLL
   if (text.includes("attendance") || text.includes("payroll") || text.includes("salary") || text.includes("payslip")) {
     return sendButtons(pid, from,
 `Please select from the options given below.`,
@@ -108,7 +135,7 @@ if (msg.type === "text") {
 ]).then(()=>res.sendStatus(200));
   }
 
-  // ✅ CLAIM
+  // CLAIM
   if (text.includes("claim")) {
     return sendButtons(pid, from,
 `Please select from the options given below`,
@@ -119,7 +146,7 @@ if (msg.type === "text") {
 ]).then(()=>res.sendStatus(200));
   }
 
-  // ✅ SHIFT / ROSTER
+  // SHIFT / ROSTER
   if (text.includes("shift") || text.includes("roster")) {
     return sendButtons(pid, from,
 `Please select from the options given below`,
@@ -130,19 +157,19 @@ if (msg.type === "text") {
 ]).then(()=>res.sendStatus(200));
   }
 
-  // ✅ CONTACT HR
+  // CONTACT HR
   if (text.includes("hr") || text.includes("contact")) {
     return sendContactHRFlow(pid, from).then(()=>res.sendStatus(200));
   }
 
-  // ✅ HOLIDAYS
+  // HOLIDAYS
   if (text.includes("holiday")) {
     return sendText(pid, from,
-`📅 Public Holiday List available. Please check from menu.`
+`📅 Public Holiday List available.`
     ).then(()=>res.sendStatus(200));
   }
 
-  // ✅ DEFAULT → MAIN MENU
+  // DEFAULT → MAIN MENU
   return sendButtons(pid, from,
 `Choose an option:`,
 [
@@ -151,7 +178,6 @@ if (msg.type === "text") {
   btn("CLAIM", "Claim")
 ]).then(()=>res.sendStatus(200));
 }
-
         // ✅ USE NAME FROM SHEET
         await sendText(pid, from,
 `Hello ${user.Name}!
