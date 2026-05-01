@@ -86,6 +86,72 @@ handleInactivity(pid, from);
           return res.sendStatus(200);
         }
 
+        // keyword block
+        // ===== SMART KEYWORD HANDLER =====
+if (msg.type === "text") {
+
+  const text = msg.text.body.toLowerCase();
+
+  // ✅ LEAVE
+  if (text.includes("leave")) {
+    return menuLeave(pid, from).then(() => res.sendStatus(200));
+  }
+
+  // ✅ ATTENDANCE / PAYROLL
+  if (text.includes("attendance") || text.includes("payroll") || text.includes("salary") || text.includes("payslip")) {
+    return sendButtons(pid, from,
+`Please select from the options given below.`,
+[
+  btn("VIEW_TIMESHEET", "View Timesheet"),
+  btn("VIEW_PAYROLL", "View Payroll"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+  }
+
+  // ✅ CLAIM
+  if (text.includes("claim")) {
+    return sendButtons(pid, from,
+`Please select from the options given below`,
+[
+  btn("APPLY_CLAIM", "Apply New Claim"),
+  btn("VIEW_CLAIMS", "View Claims"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+  }
+
+  // ✅ SHIFT / ROSTER
+  if (text.includes("shift") || text.includes("roster")) {
+    return sendButtons(pid, from,
+`Please select from the options given below`,
+[
+  btn("VIEW_SHIFT", "View My Shift"),
+  btn("VIEW_ROSTER", "View My Roster"),
+  btn("BACK", "⬅ Main Menu")
+]).then(()=>res.sendStatus(200));
+  }
+
+  // ✅ CONTACT HR
+  if (text.includes("hr") || text.includes("contact")) {
+    return sendContactHRFlow(pid, from).then(()=>res.sendStatus(200));
+  }
+
+  // ✅ HOLIDAYS
+  if (text.includes("holiday")) {
+    return sendText(pid, from,
+`📅 Public Holiday List available. Please check from menu.`
+    ).then(()=>res.sendStatus(200));
+  }
+
+  // ✅ DEFAULT → MAIN MENU
+  return sendButtons(pid, from,
+`Choose an option:`,
+[
+  btn("LEAVE", "Leave"),
+  btn("ATT_PAYROLL", "Attendance & Payroll"),
+  btn("CLAIM", "Claim")
+]).then(()=>res.sendStatus(200));
+}
+
         // ✅ USE NAME FROM SHEET
         await sendText(pid, from,
 `Hello ${user.Name}!
