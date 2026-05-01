@@ -75,6 +75,10 @@ handleInactivity(pid, from);
     // ===== TEXT (HI FLOW) =====
    if (msg.type === "text") {
 
+      userActivity[from] = Date.now();
+  inactivitySent[from] = false;
+  handleInactivity(pid, from);
+
   const text = msg.text.body.toLowerCase().trim();
 
   // ===== HI FLOW =====
@@ -286,6 +290,10 @@ buttons
     
     // ===== BUTTON HANDLER =====
     if (msg.type === "interactive" && msg.interactive?.button_reply) {
+    userActivity[from] = Date.now();
+  inactivitySent[from] = false;
+  handleInactivity(pid, from);
+      
       const id = msg.interactive.button_reply.id;
 
 // ===== LEAVE MENU =====
