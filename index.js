@@ -92,7 +92,19 @@ handleInactivity(pid, from);
 
 Welcome to HRPlace AI Chat Bot
 
-Simply select an option below or type your request.`
+You are just 2 Steps away to experience a whole new way of HRPlace that is convenient, secure and fast..!
+
+To know more, feel free to check out our:
+
+Terms and Conditions:
+https://hrplace.com.my/terms-and-conditions.php
+
+Privacy Policy:
+https://hrplace.com.my/privacy_policy.php
+
+Lets get started!
+
+Simply Select from the options below or Type your query to get started.`
     );
 
     await delay(800);
