@@ -15,6 +15,9 @@ const delay = (ms) => new Promise(r => setTimeout(r, ms));
 const userTimers = {};
 const INACTIVE_TIME = 5 * 60 * 1000; // 5 minutes
 
+const userActivity = {};     // track last activity time
+const inactivitySent = {};   // prevent repeat messages
+
 // ✅ GOOGLE SHEET API
 const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
 
@@ -58,11 +61,17 @@ app.post("/webhook", async (req, res) => {
     const msg = change.messages?.[0];
     if (!msg) return res.sendStatus(200);
 
-    const from = msg.from;
-    const pid = change.metadata.phone_number_id;
-    // Newly added line
-    handleInactivity(pid, from);
+   const from = msg.from;
+const pid = change.metadata.phone_number_id;
 
+// ✅ Track activity
+userActivity[from] = Date.now();
+
+// ✅ Reset inactivity flag when user replies
+inactivitySent[from] = false;
+
+// ✅ Start inactivity timer
+handleInactivity(pid, from);
     // ===== TEXT (HI FLOW) =====
     if (msg.type === "text") {
       const text = msg.text.body.toLowerCase().trim();
@@ -858,19 +867,29 @@ async function sendContactHRFlow(pid, to) {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
 }
-
+//inactive
 async function handleInactivity(pid, from) {
 
-  // clear old timer if exists
+  // clear old timer
   if (userTimers[from]) {
     clearTimeout(userTimers[from]);
   }
 
-  // set new timer
   userTimers[from] = setTimeout(async () => {
+
+    // ✅ If user already active again → STOP
+    if (userActivity[from] && (Date.now() - userActivity[from] < INACTIVE_TIME)) {
+      return;
+    }
+
+    // ✅ Prevent sending again
+    if (inactivitySent[from]) return;
+
+    inactivitySent[from] = true;
+
     try {
       await sendText(pid, from,
-`You have been inactive for a while. We are waiting for your response.`
+        "You have been inactive for a while. We are waiting for your response."
       );
 
       await delay(500);
@@ -885,8 +904,8 @@ Alternatively, just type and send 'Hi' to browse all our HRPlace services on wha
     } catch (err) {
       console.log("Inactivity error:", err.message);
     }
+
   }, INACTIVE_TIME);
 }
-
 // ===== START SERVER =====
 app.listen(3000, () => console.log("✅ Bot running on port 3000"));
