@@ -930,23 +930,20 @@ async function sendContactHRFlow(pid, to) {
     headers: { Authorization: `Bearer ${TOKEN}` }
   });
 }
+
 //inactive
 async function handleInactivity(pid, from) {
 
-  // clear old timer
   if (userTimers[from]) {
     clearTimeout(userTimers[from]);
   }
 
   userTimers[from] = setTimeout(async () => {
 
-    
-  
-
-    
-    if (inactivitySent[from]) return;
-
-    inactivitySent[from] = true;
+    if (inactivitySent[from]) {
+      delete userTimers[from];
+      return;
+    }
 
     try {
       await sendText(pid, from,
@@ -962,11 +959,19 @@ We are here to take your command!
 Alternatively, just type and send 'Hi' to browse all our HRPlace services on whatsapp.`
       );
 
+      // ✅ MARK SENT
+      inactivitySent[from] = true;
+
+      // ✅ FULL STOP (VERY IMPORTANT)
+      clearTimeout(userTimers[from]);
+      delete userTimers[from];
+
     } catch (err) {
       console.log("Inactivity error:", err.message);
     }
 
   }, INACTIVE_TIME);
 }
+
 // ===== START SERVER =====
 app.listen(3000, () => console.log("✅ Bot running on port 3000"));
