@@ -179,6 +179,7 @@ Simply Select from the options below or Type your query to get started.`
   }
 
  // ===== FALLBACK (UNKNOWN / NO KEYWORD) =====
+// ===== FALLBACK =====
 return sendButtons(pid, from,
 `I'm sorry, I didn't quite catch that.
 
@@ -187,7 +188,6 @@ I can currently help with Leaves, Payslips, and Attendance. Would you like to go
   btn("BACK", "⬅ Main Menu"),
   btn("CONTACT", "Contact HR")
 ]).then(()=>res.sendStatus(200));
-  
 
     
 
