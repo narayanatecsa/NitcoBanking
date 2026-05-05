@@ -178,15 +178,15 @@ Simply Select from the options below or Type your query to get started.`
     ).then(()=>res.sendStatus(200));
   }
 
-  // DEFAULT → MAIN MENU
-  return sendButtons(pid, from,
-`Choose an option:`,
+ // ===== FALLBACK (UNKNOWN / NO KEYWORD) =====
+return sendButtons(pid, from,
+`I'm sorry, I didn't quite catch that.
+
+I can currently help with Leaves, Payslips, and Attendance. Would you like to go back to the Main Menu or speak with a Human HR Representative?`,
 [
-  btn("LEAVE", "Leave"),
-  btn("ATT_PAYROLL", "Attendance & Payroll"),
-  btn("CLAIM", "Claim")
+  btn("BACK", "⬅ Main Menu"),
+  btn("CONTACT", "Contact HR")
 ]).then(()=>res.sendStatus(200));
-}
   
 
     
