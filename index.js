@@ -20,7 +20,14 @@ const inactivitySent = {};   // prevent repeat messages
 
 // ✅ GOOGLE SHEET API
 const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
+// ===== LIVE CHAT =====
+const liveChats = {};
 
+const agents = [
+  { id: 1, name: "Agent 1", online: true },
+  { id: 2, name: "Agent 2", online: true },
+  { id: 3, name: "Agent 3", online: false }
+];
 // ===== GET USER FROM SHEET =====
 async function getUser(phone) {
   try {
@@ -64,6 +71,35 @@ app.post("/webhook", async (req, res) => {
    const from = msg.from;
 const pid = change.metadata.phone_number_id;
 
+  if (
+  msg.type === "text" &&
+  liveChats[from] &&
+  liveChats[from].active
+) {
+
+  const text = msg.text.body.toLowerCase().trim();
+
+  if (text === "bot") {
+
+    delete liveChats[from];
+
+    await sendText(
+      pid,
+      from,
+      "✅ You are now back with HRPlace AI Bot."
+    );
+
+    return res.sendStatus(200);
+  }
+
+  console.log(
+    "Message for agent:",
+    from,
+    msg.text.body
+  );
+
+  return res.sendStatus(200);
+}
 
     // ===== TEXT (HI FLOW) =====
    if (msg.type === "text") {
@@ -166,10 +202,10 @@ Simply Select from the options below or Type your query to get started.`
 ]).then(()=>res.sendStatus(200));
   }
 
-  // CONTACT HR
-  if (text.includes("hr") || text.includes("contact")) {
-    return sendContactHRFlow(pid, from).then(()=>res.sendStatus(200));
-  }
+ // CONTACT HR
+if (text.includes("hr") || text.includes("contact")) {
+    return sendHRMenu(pid, from).then(()=>res.sendStatus(200));
+}
 
   // HOLIDAYS
   if (text.includes("holiday")) {
@@ -589,6 +625,41 @@ if (id === "VIEW_SHIFT") {
 ]).then(()=>res.sendStatus(200));
   
 }
+//===== live agent ======
+
+if (id === "LIVE_AGENT") {
+
+  const availableAgent =
+    agents.find(a => a.online);
+
+  if (!availableAgent) {
+
+    await sendText(
+      pid,
+      from,
+      "❌ Our agents are currently offline. We will contact you soon."
+    );
+
+    return res.sendStatus(200);
+  }
+
+  liveChats[from] = {
+    agentId: availableAgent.id,
+    agentName: availableAgent.name,
+    active: true
+  };
+
+  await sendText(
+    pid,
+    from,
+    `✅ You are now connected to ${availableAgent.name}.
+Please wait while we join the conversation.`
+    Type BOT anytime to return to HRPlace AI Bot.`
+  );
+
+  return res.sendStatus(200);
+}
+      
       // ===== VIEW ROSTER =====
 if (id === "VIEW_ROSTER") {
 
@@ -676,15 +747,9 @@ Date       Day   Holiday
 // ===== CONTACT HR (FLOW) =====
 if (id === "CONTACT") {
 
-  await sendContactHRFlow(pid, from);
+  return sendHRMenu(pid, from)
+    .then(() => res.sendStatus(200));
 
-  await delay(600);
-
-  return sendButtons(pid, from,
-`More Options`,
-[
-  btn("BACK", "⬅ Back to Main Menu")
-]).then(()=>res.sendStatus(200));
 }
       
       // BACK TO MAIN
@@ -931,6 +996,22 @@ async function sendContactHRFlow(pid, to) {
   });
 }
 
+//HRfunction
+async function sendHRMenu(pid, to) {
+
+  return sendButtons(
+    pid,
+    to,
+    "Please choose an option",
+    [
+      btn("LIVE_AGENT", "Live Agent"),
+      btn("BACK", "Main Menu")
+    ]
+  );
+
+}
+
+
 //inactive
 async function handleInactivity(pid, from) {
 
@@ -972,6 +1053,49 @@ Alternatively, just type and send 'Hi' to browse all our HRPlace services on wha
 
   }, INACTIVE_TIME);
 }
+
+// ====agent====
+app.post("/agent-reply", async (req, res) => {
+
+  const {
+    phone,
+    message,
+    pid
+  } = req.body;
+
+  await sendText(
+    pid,
+    phone,
+    message
+  );
+
+  res.json({
+    success: true
+  });
+
+});
+
+app.post("/end-chat", async (req, res) => {
+
+  const {
+    phone,
+    pid
+  } = req.body;
+
+  delete liveChats[phone];
+
+  await sendText(
+    pid,
+    phone,
+    "Conversation ended. You are now back with HRPlace AI Bot."
+  );
+
+  res.json({
+    success: true
+  });
+
+});
+
 
 // ===== START SERVER =====
 app.listen(3000, () => console.log("✅ Bot running on port 3000"));
