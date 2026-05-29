@@ -650,13 +650,14 @@ if (id === "LIVE_AGENT") {
   };
 
   await sendText(
-    pid,
-    from,
-    `✅ You are now connected to ${availableAgent.name}.
-Please wait while we join the conversation.`
-    Type BOT anytime to return to HRPlace AI Bot.`
-  );
+  pid,
+  from,
+  `✅ You are now connected to ${availableAgent.name}.
 
+Please wait while we join the conversation.
+
+Type BOT anytime to return to HRPlace AI Bot.`
+);
   return res.sendStatus(200);
 }
       
