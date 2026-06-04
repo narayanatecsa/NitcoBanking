@@ -3,33 +3,12 @@ const bodyParser = require("body-parser");
 const axios = require("axios");
 require("dotenv").config();
 
-
 const app = express();
 app.use(bodyParser.json());
 
 const TOKEN = process.env.TOKEN;
 const VERIFY = process.env.MYTOKEN;
 
-const mysql = require("mysql2/promise");
-
-const db = mysql.createPool({
-  host: "26.93.74.97",
-  user: "psrnlnarayana_poojalist",
-  password: "HRPlace@123456",
-  database: "psrnlnarayana_HRPlace",
-  waitForConnections: true,
-  connectionLimit: 10
-});
-
-db.getConnection()
-  .then(conn => {
-    console.log("✅ MYSQL CONNECTED");
-    conn.release();
-  })
-  .catch(err => {
-    console.log("❌ MYSQL ERROR");
-    console.log(err);
-  });
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 //Newly added
 // ===== INACTIVITY TRACKER =====
@@ -44,7 +23,11 @@ const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxIC
 // ===== LIVE CHAT =====
 const liveChats = {};
 
-
+const agents = [
+  { id: 1, name: "Agent 1", online: true },
+  { id: 2, name: "Agent 2", online: true },
+  { id: 3, name: "Agent 3", online: false }
+];
 // ===== GET USER FROM SHEET =====
 async function getUser(phone) {
   try {
@@ -643,31 +626,41 @@ if (id === "VIEW_SHIFT") {
   
 }
 //===== live agent ======
+
 if (id === "LIVE_AGENT") {
 
-  const result = await axios.get(
-    "https://poojalist.com/liveagent/agent-status.php"
-  );
+  const availableAgent =
+    agents.find(a => a.online);
 
-  if (!result.data.available) {
+  if (!availableAgent) {
 
     await sendText(
       pid,
       from,
-      "⏳ No agent is online now. Please wait."
+      "❌ Our agents are currently offline. We will contact you soon."
     );
 
     return res.sendStatus(200);
   }
 
-  await sendText(
-    pid,
-    from,
-    "✅ Connected to Live Agent."
-  );
+  liveChats[from] = {
+    agentId: availableAgent.id,
+    agentName: availableAgent.name,
+    active: true
+  };
 
+  await sendText(
+  pid,
+  from,
+  `✅ You are now connected to ${availableAgent.name}.
+
+Please wait while we join the conversation.
+
+Type BOT anytime to return to HRPlace AI Bot.`
+);
   return res.sendStatus(200);
-}      
+}
+      
       // ===== VIEW ROSTER =====
 if (id === "VIEW_ROSTER") {
 
