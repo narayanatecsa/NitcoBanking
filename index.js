@@ -2,7 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
 require("dotenv").config();
-const mysql = require("mysql2/promise");
+
 
 const app = express();
 app.use(bodyParser.json());
@@ -10,8 +10,10 @@ app.use(bodyParser.json());
 const TOKEN = process.env.TOKEN;
 const VERIFY = process.env.MYTOKEN;
 
+const mysql = require("mysql2/promise");
+
 const db = mysql.createPool({
-  host: "localhost",
+  host: "26.93.74.97",
   user: "psrnlnarayana_poojalist",
   password: "HRPlace@123456",
   database: "psrnlnarayana_HRPlace",
@@ -19,6 +21,15 @@ const db = mysql.createPool({
   connectionLimit: 10
 });
 
+db.getConnection()
+  .then(conn => {
+    console.log("✅ MYSQL CONNECTED");
+    conn.release();
+  })
+  .catch(err => {
+    console.log("❌ MYSQL ERROR");
+    console.log(err);
+  });
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 //Newly added
 // ===== INACTIVITY TRACKER =====
