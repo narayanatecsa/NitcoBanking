@@ -645,46 +645,29 @@ if (id === "VIEW_SHIFT") {
 //===== live agent ======
 if (id === "LIVE_AGENT") {
 
-  const [rows] = await db.query(`
-    SELECT email
-    FROM agent_status
-    WHERE status='Online'
-    LIMIT 1
-  `);
+  const result = await axios.get(
+    "https://poojalist.com/liveagent/agent-status.php"
+  );
 
-  if (rows.length === 0) {
+  if (!result.data.available) {
 
     await sendText(
       pid,
       from,
-      "⏳ No agent is online now. Please wait. An agent will connect shortly."
+      "⏳ No agent is online now. Please wait."
     );
 
     return res.sendStatus(200);
   }
 
-  const agentEmail = rows[0].email;
-
-  await db.query(`
-    INSERT INTO active_chats
-    (phone, agent_email, status, created_at)
-    VALUES (?, ?, 'Open', NOW())
-  `,[from, agentEmail]);
-
-  liveChats[from] = {
-    agentEmail,
-    active: true
-  };
-
   await sendText(
     pid,
     from,
-    "✅ Connected to Live Agent. Please wait while an agent joins the conversation."
+    "✅ Connected to Live Agent."
   );
 
   return res.sendStatus(200);
-}
-      
+}      
       // ===== VIEW ROSTER =====
 if (id === "VIEW_ROSTER") {
 
