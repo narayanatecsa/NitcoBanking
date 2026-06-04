@@ -2,12 +2,22 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
 require("dotenv").config();
+const mysql = require("mysql2/promise");
 
 const app = express();
 app.use(bodyParser.json());
 
 const TOKEN = process.env.TOKEN;
 const VERIFY = process.env.MYTOKEN;
+
+const db = mysql.createPool({
+  host: "localhost",
+  user: "psrnlnarayana_poojalist",
+  password: "HRPlace@123456",
+  database: "psrnlnarayana_HRPlace",
+  waitForConnections: true,
+  connectionLimit: 10
+});
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 //Newly added
@@ -23,11 +33,7 @@ const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxIC
 // ===== LIVE CHAT =====
 const liveChats = {};
 
-const agents = [
-  { id: 1, name: "Agent 1", online: true },
-  { id: 2, name: "Agent 2", online: true },
-  { id: 3, name: "Agent 3", online: false }
-];
+
 // ===== GET USER FROM SHEET =====
 async function getUser(phone) {
   try {
@@ -626,38 +632,45 @@ if (id === "VIEW_SHIFT") {
   
 }
 //===== live agent ======
-
 if (id === "LIVE_AGENT") {
 
-  const availableAgent =
-    agents.find(a => a.online);
+  const [rows] = await db.query(`
+    SELECT email
+    FROM agent_status
+    WHERE status='Online'
+    LIMIT 1
+  `);
 
-  if (!availableAgent) {
+  if (rows.length === 0) {
 
     await sendText(
       pid,
       from,
-      "❌ Our agents are currently offline. We will contact you soon."
+      "⏳ No agent is online now. Please wait. An agent will connect shortly."
     );
 
     return res.sendStatus(200);
   }
 
+  const agentEmail = rows[0].email;
+
+  await db.query(`
+    INSERT INTO active_chats
+    (phone, agent_email, status, created_at)
+    VALUES (?, ?, 'Open', NOW())
+  `,[from, agentEmail]);
+
   liveChats[from] = {
-    agentId: availableAgent.id,
-    agentName: availableAgent.name,
+    agentEmail,
     active: true
   };
 
   await sendText(
-  pid,
-  from,
-  `✅ You are now connected to ${availableAgent.name}.
+    pid,
+    from,
+    "✅ Connected to Live Agent. Please wait while an agent joins the conversation."
+  );
 
-Please wait while we join the conversation.
-
-Type BOT anytime to return to HRPlace AI Bot.`
-);
   return res.sendStatus(200);
 }
       
