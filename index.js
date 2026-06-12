@@ -100,6 +100,10 @@ const pid = change.metadata.phone_number_id;
    message: msg.text.body
  }
 );
+
+    return res.sendStatus(200);
+
+}
     // ===== TEXT (HI FLOW) =====
    if (msg.type === "text") {
 
