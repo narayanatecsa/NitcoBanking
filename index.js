@@ -629,39 +629,57 @@ if (id === "VIEW_SHIFT") {
   
 }
 //===== live agent ======
-if (id === "LIVE_AGENT") {
 
- const result = await axios.get(
-   `https://poojalist.com/liveagent/assign-agent.php?phone=${from}`
- );
+      if (id === "LIVE_AGENT") {
 
- if (!result.data.success) {
+ try {
+
+   const result = await axios.get(
+     `https://poojalist.com/liveagent/assign-agent.php?phone=${from}`
+   );
+
+   console.log("LIVE_AGENT RESPONSE:", result.data);
+
+   if (!result.data.success) {
+
+     await sendText(
+       pid,
+       from,
+       "⏳ All agents are busy now. Please wait for the next available agent."
+     );
+
+     return res.sendStatus(200);
+   }
+
+   liveChats[from] = {
+     agentEmail: result.data.agent,
+     active: true
+   };
 
    await sendText(
      pid,
      from,
-     "⏳ All agents are busy now. Please wait for the next available agent."
-   );
-
-   return res.sendStatus(200);
- }
-
- liveChats[from] = {
-   agentEmail: result.data.agent,
-   active: true
- };
-
- await sendText(
-   pid,
-   from,
-   `✅ Connected to ${result.data.agent}
+     `✅ Connected to ${result.data.agent}
 
 Please wait while the agent joins.
 
 Type BOT anytime to return to HRPlace AI Bot.`
- );
+   );
 
- return res.sendStatus(200);
+   return res.sendStatus(200);
+
+ } catch(err) {
+
+   console.log("LIVE_AGENT ERROR:", err.message);
+
+   await sendText(
+     pid,
+     from,
+     "Live Agent service temporarily unavailable."
+   );
+
+   return res.sendStatus(200);
+ }
 }
       
       // ===== VIEW ROSTER =====
