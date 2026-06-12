@@ -92,15 +92,14 @@ const pid = change.metadata.phone_number_id;
     return res.sendStatus(200);
   }
 
-  console.log(
-    "Message for agent:",
-    from,
-    msg.text.body
-  );
-
-  return res.sendStatus(200);
-}
-
+ await axios.post(
+ "https://poojalist.com/liveagent/save-message.php",
+ {
+   phone: from,
+   sender: "User",
+   message: msg.text.body
+ }
+);
     // ===== TEXT (HI FLOW) =====
    if (msg.type === "text") {
 
