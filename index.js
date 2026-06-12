@@ -626,39 +626,39 @@ if (id === "VIEW_SHIFT") {
   
 }
 //===== live agent ======
-
 if (id === "LIVE_AGENT") {
 
-  const availableAgent =
-    agents.find(a => a.online);
+ const result = await axios.get(
+   `https://poojalist.com/liveagent/assign-agent.php?phone=${from}`
+ );
 
-  if (!availableAgent) {
+ if (!result.data.success) {
 
-    await sendText(
-      pid,
-      from,
-      "❌ Our agents are currently offline. We will contact you soon."
-    );
+   await sendText(
+     pid,
+     from,
+     "⏳ All agents are busy now. Please wait for the next available agent."
+   );
 
-    return res.sendStatus(200);
-  }
+   return res.sendStatus(200);
+ }
 
-  liveChats[from] = {
-    agentId: availableAgent.id,
-    agentName: availableAgent.name,
-    active: true
-  };
+ liveChats[from] = {
+   agentEmail: result.data.agent,
+   active: true
+ };
 
-  await sendText(
-  pid,
-  from,
-  `✅ You are now connected to ${availableAgent.name}.
+ await sendText(
+   pid,
+   from,
+   `✅ Connected to ${result.data.agent}
 
-Please wait while we join the conversation.
+Please wait while the agent joins.
 
 Type BOT anytime to return to HRPlace AI Bot.`
-);
-  return res.sendStatus(200);
+ );
+
+ return res.sendStatus(200);
 }
       
       // ===== VIEW ROSTER =====
