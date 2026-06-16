@@ -1063,19 +1063,33 @@ Alternatively, just type and send 'Hi' to browse all our HRPlace services on wha
 app.post("/agent-reply", async (req, res) => {
 
   console.log("AGENT REPLY HIT");
+  console.log(req.body);
 
   const { phone, message } = req.body;
 
-  await sendText(
-    process.env.WHATSAPP_PHONE_ID,
-    phone,
-    message
-  );
+  try {
 
-  res.json({ success:true });
+    await sendText(
+      process.env.WHATSAPP_PHONE_ID,
+      phone,
+      message
+    );
 
+    console.log("WHATSAPP SENT");
+
+    res.json({ success:true });
+
+  } catch(err) {
+
+    console.log("WHATSAPP ERROR");
+    console.log(err.response?.data || err.message);
+
+    res.status(500).json({
+      success:false
+    });
+
+  }
 });
-
 app.post("/end-chat", async (req, res) => {
 
   const {
