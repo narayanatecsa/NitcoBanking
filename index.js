@@ -1061,23 +1061,15 @@ Alternatively, just type and send 'Hi' to browse all our HRPlace services on wha
 
 // ====agent====
 app.post("/agent-reply", async (req, res) => {
-
-  const {
-    phone,
-    message,
-    pid
-  } = req.body;
-
-  await sendText(
-    pid,
-    phone,
-    message
-  );
-
-  res.json({
-    success: true
-  });
-
+  const { phone, message } = req.body;
+  const pid = process.env.WHATSAPP_PHONE_ID; // hardcode/env instead of trusting client
+  try {
+    await sendText(pid, phone, message);
+    res.json({ success: true });
+  } catch (err) {
+    console.log("agent-reply error:", err.response?.data || err.message);
+    res.status(500).json({ success: false });
+  }
 });
 
 app.post("/end-chat", async (req, res) => {
