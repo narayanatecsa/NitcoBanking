@@ -21,13 +21,12 @@ const inactivitySent = {};   // prevent repeat messages
 // ✅ GOOGLE SHEET API
 const SHEET_API = "https://script.google.com/macros/s/AKfycbwHHurrj6O-2w2543YxICZd_7G71MZ148NGEuNCYjrJXNWRO60JADwPREQ4yGHBGWVfVQ/exec?sheet=Emp_Details";
 // ===== LIVE CHAT =====
+// ===== LIVE CHAT =====
 const liveChats = {};
 
-const agents = [
-  { id: 1, name: "Agent 1", online: true },
-  { id: 2, name: "Agent 2", online: true },
-  { id: 3, name: "Agent 3", online: false }
-];
+// ===== WACRM COPY WEBHOOK =====
+const WACRM_WEBHOOK = "https://junction-ascent-flaring.ngrok-free.dev/api/webhooks/whatsapp";
+
 // ===== GET USER FROM SHEET =====
 async function getUser(phone) {
   try {
@@ -60,13 +59,30 @@ app.get("/webhook", (req, res) => {
 });
 
 // ===== MAIN WEBHOOK =====
+// ===== MAIN WEBHOOK =====
 app.post("/webhook", async (req, res) => {
   try {
+
+    // ===== SEND COPY TO WACRM (DO NOT WAIT) =====
+    if (typeof WACRM_WEBHOOK !== "undefined") {
+      axios.post(WACRM_WEBHOOK, req.body)
+        .catch(err => {
+          console.log("WACRM forward error:", err.message);
+        });
+    }
+
+    // ===== YOUR EXISTING HRPLACE BOT CONTINUE =====
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
-    if (!change) return res.sendStatus(200);
+
+    if (!change) {
+      return res.sendStatus(200);
+    }
 
     const msg = change.messages?.[0];
-    if (!msg) return res.sendStatus(200);
+
+    if (!msg) {
+      return res.sendStatus(200);
+    }
 
    const from = msg.from;
 const pid = change.metadata.phone_number_id;
