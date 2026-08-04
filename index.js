@@ -65,12 +65,12 @@ app.post("/webhook", async (req, res) => {
   try {
 
     // ===== SEND COPY TO WACRM (DO NOT WAIT) =====
-    if (typeof WACRM_WEBHOOK !== "undefined") {
-      axios.post(WACRM_WEBHOOK, req.body)
-        .catch(err => {
-          console.log("WACRM forward error:", err.message);
-        });
-    }
+    axios.post(WACRM_WEBHOOK, req.body, {
+  headers: {
+    "x-wacrm-forwarder-secret": process.env.WEBHOOK_FORWARDER_SECRET,
+    "x-wacrm-forwarder-id": process.env.WEBHOOK_FORWARDER_ID
+  }
+})
 
     // ===== YOUR EXISTING HRPLACE BOT CONTINUE =====
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
