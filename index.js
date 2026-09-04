@@ -33,11 +33,14 @@ async function getUser(phone) {
   try {
     const res = await axios.get(SHEET_API);
     const users = res.data;
+    const clean = String(phone || "").replace(/\D/g, "").replace(/^60/, "");
 
-    const clean = phone.replace(/\D/g, "");
+   // const clean = phone.replace(/\D/g, "");
 
     const user = users.find(u =>
-      String(u.Mobile).replace(/\D/g, "") === clean
+      String(u.Mobile || "").replace(/\D/g, "").replace(/^60/, "") === clean
+    //  String(u.Mobile).replace(/\D/g, "") === clean
+      
     );
 
     return user && user.Status === "Active" ? user : null;
