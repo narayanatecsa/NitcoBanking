@@ -1,6 +1,11 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
+const crypto = require("crypto");
+const fs = require("fs");
+const net = require("net");
+const mysql = require("mysql2/promise");
+const path = require("path");
 require("dotenv").config();
 
 const app = express();
@@ -26,7 +31,70 @@ const liveChats = {};
 
 // ===== WACRM COPY WEBHOOK =====
 //const WACRM_WEBHOOK = "https://junction-ascent-flaring.ngrok-free.dev/api/whatsapp/webhook";
-const WACRM_WEBHOOK = "https://wacrm-hrchatbot.onrender.com/api/whatsapp/webhook";
+const WACRM_WEBHOOK =
+  process.env.WACRM_WEBHOOK_URL ||
+  "https://wacrm-hrchatbot.onrender.com/api/whatsapp/webhook";
+
+const DB_TLS_SERVERNAME =
+  process.env.DB_TLS_SERVERNAME || "srv1311180.hstgr.cloud";
+let mysqlPool;
+
+function getMysqlPool() {
+  if (mysqlPool) return mysqlPool;
+
+  const required = [
+    "DB_HOST",
+    "DB_DATABASE",
+    "DB_USERNAME",
+    "DB_PASSWORD",
+  ];
+  if (required.some((name) => !process.env[name])) {
+    throw new Error("MYSQL_CONFIGURATION_MISSING");
+  }
+  if (!process.env.DB_CA_PATH && !process.env.DB_CA) {
+    throw new Error("MYSQL_CA_MISSING");
+  }
+
+  const ca = process.env.DB_CA_PATH
+    ? fs.readFileSync(path.resolve(process.env.DB_CA_PATH), "utf8")
+    : process.env.DB_CA.replace(/\\n/g, "\n");
+  const port = Number(process.env.DB_PORT || 3306);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("MYSQL_PORT_INVALID");
+  }
+
+  mysqlPool = mysql.createPool({
+    host: DB_TLS_SERVERNAME,
+    port,
+    stream: () => net.connect(port, process.env.DB_HOST),
+    database: process.env.DB_DATABASE,
+    user: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    waitForConnections: true,
+    connectionLimit: 2,
+    queueLimit: 0,
+    connectTimeout: 10000,
+    ssl: {
+      rejectUnauthorized: true,
+      verifyIdentity: true,
+      ca,
+    },
+  });
+  return mysqlPool;
+}
+
+function isMysqlDiagnosticAuthorized(req) {
+  const expected = process.env.MYSQL_DIAGNOSTIC_TOKEN;
+  const supplied = req.get("authorization") || "";
+  if (!expected || !supplied.startsWith("Bearer ")) return false;
+
+  const expectedBuffer = Buffer.from(`Bearer ${expected}`);
+  const suppliedBuffer = Buffer.from(supplied);
+  return (
+    expectedBuffer.length === suppliedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, suppliedBuffer)
+  );
+}
 
 // ===== GET USER FROM SHEET =====
 async function getUser(phone) {
@@ -62,18 +130,50 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
+app.post("/internal/mysql-diagnostic", async (req, res) => {
+  if (!isMysqlDiagnosticAuthorized(req)) {
+    return res.sendStatus(404);
+  }
+
+  const correlationId = crypto.randomUUID();
+  try {
+    await getMysqlPool().execute("SELECT 1");
+    console.info(JSON.stringify({
+      event: "mysql_diagnostic_succeeded",
+      correlationId,
+    }));
+    return res.status(200).json({ status: "connected", correlationId });
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "mysql_diagnostic_failed",
+      correlationId,
+      code: error.code || error.name,
+    }));
+    return res.status(503).json({ status: "unavailable", correlationId });
+  }
+});
+
 // ===== MAIN WEBHOOK =====
 // ===== MAIN WEBHOOK =====
 app.post("/webhook", async (req, res) => {
   try {
 
     // ===== SEND COPY TO WACRM (DO NOT WAIT) =====
-    axios.post(WACRM_WEBHOOK, req.body, {
-  headers: {
-    "x-wacrm-forwarder-secret": process.env.WEBHOOK_FORWARDER_SECRET,
-    "x-wacrm-forwarder-id": process.env.WEBHOOK_FORWARDER_ID
-  }
-})
+    void axios
+      .post(WACRM_WEBHOOK, req.body, {
+        headers: {
+          "x-wacrm-forwarder-secret": process.env.WEBHOOK_FORWARDER_SECRET,
+          "x-wacrm-forwarder-id": process.env.WEBHOOK_FORWARDER_ID,
+        },
+        timeout: 5000,
+      })
+      .catch((error) => {
+        console.warn(JSON.stringify({
+          event: "wacrm_forward_failed",
+          code: error.code || error.name,
+          status: error.response?.status,
+        }));
+      });
 
     // ===== YOUR EXISTING HRPLACE BOT CONTINUE =====
     const change = req.body.entry?.[0]?.changes?.[0]?.value;
