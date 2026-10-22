@@ -1133,4 +1133,5 @@ app.post("/end-chat", async (req, res) => {
 
 
 // ===== START SERVER =====
-app.listen(3000, () => console.log("✅ Bot running on port 3000"));
+const PORT = Number(process.env.PORT || 3000);
+app.listen(PORT, () => console.log(`Bot running on port ${PORT}`));
